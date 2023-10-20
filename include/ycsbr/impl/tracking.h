@@ -40,7 +40,7 @@ class MetricsTracker {
       : reads_(num_reads_hint),
         writes_(num_writes_hint),
         scans_(num_scans_hint),
-        deletes_(num_delete_hint),   ////////////////////
+        deletes_(num_deletes_hint),   ////////////////////
         failed_reads_(0),
         failed_writes_(0),
         failed_scans_(0),
@@ -127,7 +127,7 @@ class MetricsTracker {
       reads.emplace_back(std::move(tracker.reads_));
       writes.emplace_back(std::move(tracker.writes_));
       scans.emplace_back(std::move(tracker.scans_));
-      deletes.emplce_back(std::move(tracker.deletes_));   /////////////////////
+      deletes.emplace_back(std::move(tracker.deletes_));   /////////////////////
       read_xor ^= tracker.read_xor_;
       failed_reads += tracker.failed_reads_;
       failed_writes += tracker.failed_writes_;

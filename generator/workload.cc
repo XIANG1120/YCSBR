@@ -127,7 +127,8 @@ std::vector<Producer> PhasedWorkload::GetProducers(
 
 Producer::Producer(
     std::shared_ptr<const WorkloadConfig> config,
-    std::shared_ptr<const std::vector<Request::Key>> load_keys,
+    //std::shared_ptr<const std::vector<Request::Key>> load_keys,  
+    std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,
@@ -220,7 +221,7 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) 
   const size_t index = chooser->Next(prng_);
   if (index < num_load_keys_) {
     key = (*load_keys_)[index];
-    (*load_keys_).erase(load_keys_->begin() + index);
+    load_keys_->erase(load_keys_->begin() + index);
     num_load_keys_--;
   }
   key = insert_keys_[index - num_load_keys_];

@@ -94,7 +94,8 @@ class PhasedWorkload::Producer {
  private:
   friend class PhasedWorkload;   //友元类
   Producer(std::shared_ptr<const WorkloadConfig> config,  //工作负载配置
-           std::shared_ptr<const std::vector<Request::Key>> load_keys,  //被加载的key
+          // std::shared_ptr<const std::vector<Request::Key>> load_keys,  //被加载的key
+           std::shared_ptr< std::vector<Request::Key>> load_keys,  //被加载的key     ///////////////////////////
            std::shared_ptr<
                const std::unordered_map<std::string, std::vector<Request::Key>>>
                custom_inserts,   //自定义插入键
@@ -112,7 +113,8 @@ class PhasedWorkload::Producer {
   PhaseID current_phase_;
 
   // The keys that were loaded.    //++被加载的key
-  std::shared_ptr<const std::vector<Request::Key>> load_keys_;
+  //std::shared_ptr<const std::vector<Request::Key>> load_keys_;
+  std::shared_ptr< std::vector<Request::Key>> load_keys_;    /////////////////////
   size_t num_load_keys_;
 
   // Custom keys to insert.   //++自定义插入key
