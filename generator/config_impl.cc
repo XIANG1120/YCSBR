@@ -416,11 +416,12 @@ Phase WorkloadConfigImpl::GetPhase(const PhaseID phase_id,
 
   // Set the thresholds appropriately to allow for comparsion against a random
   // integer generated in the range [0, 100).  //++适当设置阈值，以允许与在[0，100）范围内生成的随机整数进行比较
-  phase.delete_thres += phase.read_thres;        ///////////////////
+
   phase.rmw_thres += phase.read_thres;
   phase.negativeread_thres += phase.rmw_thres;
   phase.scan_thres += phase.negativeread_thres;
   phase.update_thres += phase.scan_thres;
+  phase.delete_thres += phase.update_thres;        ///////////////////
 
   return phase;
 }
