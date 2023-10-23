@@ -1,4 +1,6 @@
 #include "ycsbr/gen/workload.h"
+#include <iostream>    //////////////////////////
+#include <thread>   ////////////////////////
 
 #include <cassert>
 
@@ -370,11 +372,14 @@ Request Producer::Next() {
 
   // Advance to the next request.
   --this_phase.num_requests_left;
+  std::cout<< std::this_thread::get_id() << ":" << this_phase.num_requests_left<<std::endl;
   if (this_phase.num_requests_left == 0) {
     ++current_phase_;
     /////////////////////////
+    std::cout << "我要进入下一个阶段了" <<std::endl;
     if(current_phase_<phases_.size()){
       phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);
+      std::cout << "我进入了下一个阶段" <<std::endl;
     }
     /////////////////////////
     // Reset the operation selection distribution.
