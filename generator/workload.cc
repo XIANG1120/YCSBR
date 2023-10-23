@@ -114,12 +114,19 @@ std::vector<Producer> PhasedWorkload::GetProducers(
     const size_t num_producers) const {
   std::vector<Producer> producers;
   producers.reserve(num_producers);
+  /////////////////////////////
+  size_t num_load = load_keys_->size();
+  std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
+  std::mutex mtx;
+  std::shared_ptr<std::mutex> mute = std::make_shared<std::mutex>(mtx);
+  //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
     producers.push_back(
         // Each Producer's workload should be deterministic, but we want each
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.//++每个Producer的工作负载应该是确定性的，但我们希望每个Producer彼此产生不同的requests。因此，我们在其种子中包含producer ID。
-        Producer(config_, load_keys_, custom_inserts_, id, num_producers,
+        //Producer(config_, load_keys_,  custom_inserts_, id, num_producers, 
+        Producer(config_, load_keys_, num_load_keys_, mute, custom_inserts_, id, num_producers,    ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -129,6 +136,8 @@ Producer::Producer(
     std::shared_ptr<const WorkloadConfig> config,
     //std::shared_ptr<const std::vector<Request::Key>> load_keys,  
     std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
+    std::shared_ptr<size_t> num_load_keys_,   /////////////////////////////
+    std::shared_ptr<std::mutex> mute,   ///////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,
@@ -139,10 +148,12 @@ Producer::Producer(
       prng_(prng_seed),
       current_phase_(0),
       load_keys_(std::move(load_keys)),
-      num_load_keys_(load_keys_->size()),
+      //num_load_keys_(load_keys_->size()),
+      num_load_keys_(num_load_keys_),    /////////////////////////
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
-      num_deletes(0),          //////////////////////////////////
+      num_load_previous(load_keys_->size()),          //////////////////////////////////
+      mtx(std::move(mute)),     ///////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
                 kNumUniqueValues, prng_),
       op_dist_(0, 99) {}
@@ -207,28 +218,48 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
   }
 }
 
-Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
+//Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
+Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::shared_ptr<std::mutex> mtx) {       ///////////////////////////////////
+  ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
+  Request::Key key;
+  (*mtx).lock();  //加锁
+  size_t num_load = *num_load_keys_;   //读
+  if (num_load_previous - num_load > 0) {
+    this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
+  num_load_previous = num_load;      //读
+  ////////////////////////
   const size_t index = chooser->Next(prng_);
-  if (index < num_load_keys_) {
-    return (*load_keys_)[index];
+  if (index < *num_load_keys_) {
+    key = (*load_keys_)[index];  //读
+    (*mtx).unlock();  //解锁
+    return key;
   }
-  return insert_keys_[index - num_load_keys_];
+  (*mtx).unlock();  //解锁
+  return insert_keys_[index - *num_load_keys_];
 }
 
 ////////////////////////////////////
-Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) {
+Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::shared_ptr<std::mutex> mtx) {
   Request::Key key;
+  (*mtx).lock();  //加锁
+  size_t num_load = *num_load_keys_;   //读
+  if (num_load_previous - num_load > 0) {
+    this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
+  num_load_previous = num_load;  //读
   const size_t index = chooser->Next(prng_);
-  if (index < num_load_keys_) {
-    key = (*load_keys_)[index];
-    load_keys_->erase(load_keys_->begin() + index);
-    num_load_keys_--;
+  if (index < *num_load_keys_) {
+    key = (*load_keys_)[index];   //读
+    load_keys_->erase(load_keys_->begin() + index);  //写
+    (*num_load_keys_)--;   //写
+    (*mtx).unlock();  //解锁
+    return key;
   }
-  key = insert_keys_[index - num_load_keys_];
-  insert_keys_.erase(insert_keys_.begin() + index - num_load_keys_);
+  (*mtx).unlock();  //解锁
+  key = insert_keys_[index - *num_load_keys_];
+  insert_keys_.erase(insert_keys_.begin() + index - *num_load_keys_);
   next_insert_key_index_--;
+  this_phase.IncreaseItemCountBy(-1);
 
-  num_deletes++;
   return key;
 }
 ////////////////////////////////////
@@ -270,19 +301,19 @@ Request Producer::Next() {
   switch (next_op) {
     case Request::Operation::kRead: {
       to_return = Request(Request::Operation::kRead,
-                          ChooseKey(this_phase.read_chooser), 0, nullptr, 0);
+                          ChooseKey(this_phase.read_chooser, this_phase, mtx), 0, nullptr, 0);    ////////////////////
       break;
     }
 
     case Request::Operation::kReadModifyWrite: {
       to_return = Request(Request::Operation::kReadModifyWrite,
-                          ChooseKey(this_phase.rmw_chooser), 0,
+                          ChooseKey(this_phase.rmw_chooser, this_phase, mtx), 0,    //////////////////////
                           valuegen_.NextValue(), valuegen_.value_size());
       break;
     }
 
     case Request::Operation::kNegativeRead: {
-      Request::Key to_read = ChooseKey(this_phase.negativeread_chooser);
+      Request::Key to_read = ChooseKey(this_phase.negativeread_chooser, this_phase, mtx);   //////////////////////
       to_read |= (0xFF << 8);
       to_return =
           Request(Request::Operation::kNegativeRead, to_read, 0, nullptr, 0);
@@ -293,14 +324,14 @@ Request Producer::Next() {
       // We add 1 to the chosen scan length because `Chooser` instances always
       // return values in a 0-based range.
       to_return =
-          Request(Request::Operation::kScan, ChooseKey(this_phase.scan_chooser),
+          Request(Request::Operation::kScan, ChooseKey(this_phase.scan_chooser, this_phase, mtx),   ////////////////////////////
                   this_phase.scan_length_chooser->Next(prng_) + 1, nullptr, 0);
       break;
     }
 
     case Request::Operation::kUpdate: {
       to_return = Request(Request::Operation::kUpdate,
-                          ChooseKey(this_phase.update_chooser), 0,
+                          ChooseKey(this_phase.update_chooser, this_phase, mtx), 0,   /////////////////////////////////
                           valuegen_.NextValue(), valuegen_.value_size());
       break;
     }
@@ -308,8 +339,7 @@ Request Producer::Next() {
     //////////////////////////////
     case Request::Operation::kDelete: {
       to_return =
-          Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser), 0, nullptr, 0);
-      this_phase.IncreaseItemCountBy(-1);
+          Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser,this_phase, mtx), 0, nullptr, 0);
       break;
     }
     //////////////////////////////
@@ -343,7 +373,7 @@ Request Producer::Next() {
   --this_phase.num_requests_left;
   if (this_phase.num_requests_left == 0) {
     ++current_phase_;
-    phases_[current_phase_].IncreaseItemCountBy(-num_deletes);    //////////////////////////
+    phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);    //////////////////////////
     // Reset the operation selection distribution.
     op_dist_ = std::uniform_int_distribution<uint32_t>(0, 99);
   }

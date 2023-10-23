@@ -44,6 +44,11 @@ struct Phase {
     if (update_chooser != nullptr) {
       update_chooser->SetItemCount(item_count);
     }
+    /////////////////////////////////
+    if (delete_chooser != nullptr) {
+      delete_chooser->SetItemCount(item_count);
+    }
+    /////////////////////////////////
   }
 
   void IncreaseItemCountBy(const size_t delta) {
@@ -62,13 +67,18 @@ struct Phase {
     if (update_chooser != nullptr) {
       update_chooser->IncreaseItemCountBy(delta);
     }
+    /////////////////////////////////
+    if (delete_chooser != nullptr) {
+      delete_chooser->IncreaseItemCountBy(delta);
+    }
+    /////////////////////////////////
   }
 
   PhaseID phase_id;
 
   size_t num_inserts, num_inserts_left;
   size_t num_requests, num_requests_left;
-  size_t num_deletes;   ///////////////////////////
+  // size_t num_deletes;   ///////////////////////////
 
   uint32_t read_thres, rmw_thres, negativeread_thres, scan_thres, update_thres;
   uint32_t delete_thres;              //////////////////////////////
