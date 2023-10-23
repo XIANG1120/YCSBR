@@ -98,15 +98,15 @@ class PhasedWorkload::Producer {
           // std::shared_ptr<const std::vector<Request::Key>> load_keys,  //被加载的key
            std::shared_ptr< std::vector<Request::Key>> load_keys,  //被加载的key     ///////////////////////////
            std::shared_ptr<size_t> num_load_keys_,    ///////////////////////////////
-           std::shared_ptr<std::mutex> mute,   //////////////////////////
+           std::mutex & mute,   //////////////////////////
            std::shared_ptr<
                const std::unordered_map<std::string, std::vector<Request::Key>>>
                custom_inserts,   //自定义插入键
            ProducerID id, size_t num_producers, uint32_t prng_seed);  //producer ID,生产者数量，prng_seed
 
   //Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);
-  Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase & this_phase, std::shared_ptr<std::mutex> mtx);    /////////////////////////////
-  Request::Key deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase & this_phase, std::shared_ptr<std::mutex> mtx);    //////////////////////////////
+  Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase & this_phase, std::mutex & mtx);    /////////////////////////////
+  Request::Key deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase & this_phase, std::mutex & mtx);    //////////////////////////////
 
   ProducerID id_;
   size_t num_producers_;
@@ -132,7 +132,7 @@ class PhasedWorkload::Producer {
   size_t next_insert_key_index_;
 
   size_t num_load_previous;   //////////////////////////
-  std::shared_ptr<std::mutex> mtx;   ///////////////////////////
+  std::mutex & mtx;   ///////////////////////////
 
   ValueGenerator valuegen_;
 

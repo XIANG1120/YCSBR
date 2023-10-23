@@ -118,7 +118,6 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   size_t num_load = load_keys_->size();
   std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
   std::mutex mtx;
-  std::shared_ptr<std::mutex> mute = std::make_shared<std::mutex>(mtx);
   //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
     producers.push_back(
@@ -126,7 +125,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.//++每个Producer的工作负载应该是确定性的，但我们希望每个Producer彼此产生不同的requests。因此，我们在其种子中包含producer ID。
         //Producer(config_, load_keys_,  custom_inserts_, id, num_producers, 
-        Producer(config_, load_keys_, num_load_keys_, mute, custom_inserts_, id, num_producers,    ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, mtx, custom_inserts_, id, num_producers,    ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -137,7 +136,7 @@ Producer::Producer(
     //std::shared_ptr<const std::vector<Request::Key>> load_keys,  
     std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
     std::shared_ptr<size_t> num_load_keys_,   /////////////////////////////
-    std::shared_ptr<std::mutex> mute,   ///////////////////////
+    std::mutex & mute,   ///////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,
@@ -153,7 +152,7 @@ Producer::Producer(
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
       num_load_previous(load_keys_->size()),          //////////////////////////////////
-      mtx(std::move(mute)),     ///////////////////////////
+      mtx(mute),     ///////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
                 kNumUniqueValues, prng_),
       op_dist_(0, 99) {}
@@ -219,10 +218,10 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
 }
 
 //Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
-Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::shared_ptr<std::mutex> mtx) {       ///////////////////////////////////
+Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::mutex & mtx) {       ///////////////////////////////////
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
   Request::Key key;
-  (*mtx).lock();  //加锁
+  mtx.lock();  //加锁
   size_t num_load = *num_load_keys_;   //读
   if (num_load_previous - num_load > 0) {
     this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
@@ -231,17 +230,17 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase&
   const size_t index = chooser->Next(prng_);
   if (index < *num_load_keys_) {
     key = (*load_keys_)[index];  //读
-    (*mtx).unlock();  //解锁
+    mtx.unlock();  //解锁
     return key;
   }
-  (*mtx).unlock();  //解锁
+  mtx.unlock();  //解锁
   return insert_keys_[index - *num_load_keys_];
 }
 
 ////////////////////////////////////
-Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::shared_ptr<std::mutex> mtx) {
+Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::mutex & mtx) {
   Request::Key key;
-  (*mtx).lock();  //加锁
+  mtx.lock();  //加锁
   size_t num_load = *num_load_keys_;   //读
   if (num_load_previous - num_load > 0) {
     this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
@@ -251,10 +250,10 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser, 
     key = (*load_keys_)[index];   //读
     load_keys_->erase(load_keys_->begin() + index);  //写
     (*num_load_keys_)--;   //写
-    (*mtx).unlock();  //解锁
+    mtx.unlock();  //解锁
     return key;
   }
-  (*mtx).unlock();  //解锁
+  mtx.unlock();  //解锁
   key = insert_keys_[index - *num_load_keys_];
   insert_keys_.erase(insert_keys_.begin() + index - *num_load_keys_);
   next_insert_key_index_--;
