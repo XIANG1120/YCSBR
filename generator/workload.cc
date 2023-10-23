@@ -222,6 +222,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
 //Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::mutex & mtx) {       ///////////////////////////////////
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
+  std::cout<< "成功进入choosekey"<<std::endl;
   Request::Key key;
   mtx.lock();  //加锁
   size_t num_load = *num_load_keys_;   //读
@@ -233,9 +234,11 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase&
   if (index < *num_load_keys_) {
     key = (*load_keys_)[index];  //读    
     mtx.unlock();  //解锁   ////////////////////////////
+    std::cout << "要出choosekey了" <<std::endl;
     return key;
   }
   mtx.unlock();  //解锁
+  std::cout << "要出choosekey了" <<std::endl;
   return insert_keys_[index - *num_load_keys_];
 }
 
