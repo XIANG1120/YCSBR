@@ -229,8 +229,8 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase&
   ////////////////////////
   const size_t index = chooser->Next(prng_);
   if (index < *num_load_keys_) {
-    key = (*load_keys_)[index];  //读
-    mtx.unlock();  //解锁
+    key = (*load_keys_)[index];  //读    
+    mtx.unlock();  //解锁   ////////////////////////////
     return key;
   }
   mtx.unlock();  //解锁
@@ -361,7 +361,7 @@ Request Producer::Next() {
           // This case should only occur if the workload is insert-only. However
           // this means that this was the last request (we decrement the
           // requests counter below).
-          assert(this_phase.num_requests_left == 1);
+          assert(this_phase.num_requests_left == 1);    //剩下的这一个request就是我们当前的这个insert request
         }
       }
       break;
@@ -372,7 +372,11 @@ Request Producer::Next() {
   --this_phase.num_requests_left;
   if (this_phase.num_requests_left == 0) {
     ++current_phase_;
-    phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);    //////////////////////////
+    /////////////////////////
+    if(current_phase_<phases_.size()){
+      phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);
+    }
+    /////////////////////////
     // Reset the operation selection distribution.
     op_dist_ = std::uniform_int_distribution<uint32_t>(0, 99);
   }
