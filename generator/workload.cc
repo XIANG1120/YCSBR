@@ -219,7 +219,6 @@ void Producer::Prepare() {
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
   Phase& this_phase = phases_[current_phase_];
-  Request::Key key;
  // mtx.lock();  //加锁
   size_t num_load = *num_load_keys_;   //读
   if (num_load_previous - num_load > 0) {
