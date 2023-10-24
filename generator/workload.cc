@@ -13,6 +13,7 @@ using namespace ycsbr::gen;
 // Producers will cycle through this many unique values (when inserting or
 // making updates).
 constexpr size_t kNumUniqueValues = 100;
+std::mutex mutx;   //////////////////////////////
 
 void ApplyPhaseAndProducerIDs(std::vector<Request::Key>::iterator begin,
                               std::vector<Request::Key>::iterator end,
@@ -117,14 +118,13 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   /////////////////////////////
   size_t num_load = load_keys_->size();
   std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
-  std::mutex mtx;
   //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
     producers.push_back(
         // Each Producer's workload should be deterministic, but we want each
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.
-        Producer(config_, load_keys_, num_load_keys_, &mtx, custom_inserts_, id, num_producers,    ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, mutx, custom_inserts_, id, num_producers,    ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -135,7 +135,7 @@ Producer::Producer(
     //std::shared_ptr<const std::vector<Request::Key>> load_keys,  
     std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
     std::shared_ptr<size_t> num_load_keys_,   /////////////////////////////
-    std::mutex * mute,   ///////////////////////
+    std::mutex& mutx,
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,
@@ -151,7 +151,7 @@ Producer::Producer(
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
       num_load_previous(load_keys_->size()),          //////////////////////////////////
-      mtx(mute),     ///////////////////////////
+      mtx(mutx),     ///////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
                 kNumUniqueValues, prng_),
       op_dist_(0, 99) {}
@@ -219,21 +219,20 @@ void Producer::Prepare() {
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
   Phase& this_phase = phases_[current_phase_];
-  mtx->lock();  //加锁
-  mtx->unlock();  //解锁   ////////////////////////////
+  mtx.lock();
   size_t num_load = *num_load_keys_;   //读
   if (num_load_previous - num_load > 0) {
     this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
-  num_load_previous = num_load;      //读
+  num_load_previous = num_load;     //读
   ////////////////////////
   Request::Key key;
   const size_t index = chooser->Next(prng_);
   if (index < *num_load_keys_) {
       key = (*load_keys_)[index];  //////////////////
-
+      mtx.unlock();
     return key;
   }
-
+  mtx.unlock();
   key = insert_keys_[index - *num_load_keys_];
   return key;
 }
