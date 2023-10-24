@@ -34,6 +34,8 @@ template class BufferedWorkload<gen::PhasedWorkload>;
 
 namespace gen {
 
+std::mutex mute;    /////////////////////////////
+
 using Producer = PhasedWorkload::Producer;
 
 std::unique_ptr<PhasedWorkload> PhasedWorkload::LoadFrom( //LoadFrom函数实例化一个PhasedWorkload对象，并返回指向这个对象的唯一指针
@@ -119,7 +121,6 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   /////////////////////////////
   size_t num_load = load_keys_->size();
   std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
-  std::mutex mtx;
   //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
     producers.push_back(
@@ -127,7 +128,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.//++每个Producer的工作负载应该是确定性的，但我们希望每个Producer彼此产生不同的requests。因此，我们在其种子中包含producer ID。
         //Producer(config_, load_keys_,  custom_inserts_, id, num_producers, 
-        Producer(config_, load_keys_, num_load_keys_, mtx, custom_inserts_, id, num_producers,    ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, mute, custom_inserts_, id, num_producers,    ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -222,7 +223,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
 //Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       ///////////////////////////////////
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
-  std::cout<< "成功进入choosekey"<<std::endl;
+  std::cerr<< "成功进入choosekey"<<std::endl;
   Phase & this_phase = phases_[current_phase_];
   Request::Key key;
   mtx.lock();  //加锁
@@ -235,11 +236,11 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {     
   if (index < *num_load_keys_) {
     key = (*load_keys_)[index];  //读    
     mtx.unlock();  //解锁   ////////////////////////////
-    std::cout << "要出choosekey了" <<std::endl;
+    std::cerr << "要出choosekey了" <<std::endl;
     return key;
   }
   mtx.unlock();  //解锁
-  std::cout << "要出choosekey了" <<std::endl;
+  std::cerr << "要出choosekey了" <<std::endl;
   return insert_keys_[index - *num_load_keys_];
 }
 
@@ -377,14 +378,14 @@ Request Producer::Next() {
 
   // Advance to the next request.
   --this_phase.num_requests_left;
-  std::cout<< std::this_thread::get_id() << ":" << this_phase.num_requests_left<<std::endl;
+  std::cerr<< std::this_thread::get_id() << ":" << this_phase.num_requests_left<<std::endl;
   if (this_phase.num_requests_left == 0) {
     ++current_phase_;
     /////////////////////////
-    std::cout << "我要进入下一个阶段了" <<std::endl;
+    std::cerr << "我要进入下一个阶段了" <<std::endl;
     if(current_phase_<phases_.size()){
       phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);
-      std::cout << "我进入了下一个阶段" <<std::endl;
+      std::cerr << "我进入了下一个阶段" <<std::endl;
     }
     /////////////////////////
     // Reset the operation selection distribution.
