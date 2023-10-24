@@ -105,8 +105,8 @@ class PhasedWorkload::Producer {
            ProducerID id, size_t num_producers, uint32_t prng_seed);  //producer ID,生产者数量，prng_seed
 
   //Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);
-  Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase & this_phase, std::mutex & mtx);    /////////////////////////////
-  Request::Key deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase & this_phase, std::mutex & mtx);    //////////////////////////////
+  Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);    /////////////////////////////
+  Request::Key deleteChooseKey(const std::unique_ptr<Chooser>& chooser);    //////////////////////////////
 
   ProducerID id_;
   size_t num_producers_;

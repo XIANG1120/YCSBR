@@ -220,9 +220,10 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
 }
 
 //Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
-Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::mutex & mtx) {       ///////////////////////////////////
+Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       ///////////////////////////////////
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
   std::cout<< "成功进入choosekey"<<std::endl;
+  Phase & this_phase = phases_[current_phase_];
   Request::Key key;
   mtx.lock();  //加锁
   size_t num_load = *num_load_keys_;   //读
@@ -243,7 +244,8 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser, Phase&
 }
 
 ////////////////////////////////////
-Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser, Phase& this_phase, std::mutex & mtx) {
+Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) {
+  Phase & this_phase = phases_[current_phase_];
   Request::Key key;
   mtx.lock();  //加锁
   size_t num_load = *num_load_keys_;   //读
@@ -305,19 +307,19 @@ Request Producer::Next() {
   switch (next_op) {
     case Request::Operation::kRead: {
       to_return = Request(Request::Operation::kRead,
-                          ChooseKey(this_phase.read_chooser, this_phase, mtx), 0, nullptr, 0);    ////////////////////
+                          ChooseKey(this_phase.read_chooser), 0, nullptr, 0); 
       break;
     }
 
     case Request::Operation::kReadModifyWrite: {
       to_return = Request(Request::Operation::kReadModifyWrite,
-                          ChooseKey(this_phase.rmw_chooser, this_phase, mtx), 0,    //////////////////////
+                          ChooseKey(this_phase.rmw_chooser), 0,   
                           valuegen_.NextValue(), valuegen_.value_size());
       break;
     }
 
     case Request::Operation::kNegativeRead: {
-      Request::Key to_read = ChooseKey(this_phase.negativeread_chooser, this_phase, mtx);   //////////////////////
+      Request::Key to_read = ChooseKey(this_phase.negativeread_chooser);  
       to_read |= (0xFF << 8);
       to_return =
           Request(Request::Operation::kNegativeRead, to_read, 0, nullptr, 0);
@@ -328,14 +330,14 @@ Request Producer::Next() {
       // We add 1 to the chosen scan length because `Chooser` instances always
       // return values in a 0-based range.
       to_return =
-          Request(Request::Operation::kScan, ChooseKey(this_phase.scan_chooser, this_phase, mtx),   ////////////////////////////
+          Request(Request::Operation::kScan, ChooseKey(this_phase.scan_chooser),   
                   this_phase.scan_length_chooser->Next(prng_) + 1, nullptr, 0);
       break;
     }
 
     case Request::Operation::kUpdate: {
       to_return = Request(Request::Operation::kUpdate,
-                          ChooseKey(this_phase.update_chooser, this_phase, mtx), 0,   /////////////////////////////////
+                          ChooseKey(this_phase.update_chooser), 0,  
                           valuegen_.NextValue(), valuegen_.value_size());
       break;
     }
@@ -343,7 +345,7 @@ Request Producer::Next() {
     //////////////////////////////
     case Request::Operation::kDelete: {
       to_return =
-          Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser,this_phase, mtx), 0, nullptr, 0);
+          Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser), 0, nullptr, 0);
       break;
     }
     //////////////////////////////
