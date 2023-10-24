@@ -13,7 +13,6 @@ using namespace ycsbr::gen;
 // Producers will cycle through this many unique values (when inserting or
 // making updates).
 constexpr size_t kNumUniqueValues = 100;
-std::mutex mutx;   //////////////////////////////
 
 void ApplyPhaseAndProducerIDs(std::vector<Request::Key>::iterator begin,
                               std::vector<Request::Key>::iterator end,
@@ -32,6 +31,8 @@ namespace ycsbr {
 template class BufferedWorkload<gen::PhasedWorkload>;
 
 namespace gen {
+
+std::mutex mutx;   //////////////////////////////
 
 using Producer = PhasedWorkload::Producer;
 
