@@ -124,7 +124,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
         // Each Producer's workload should be deterministic, but we want each
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.
-        Producer(config_, load_keys_, num_load_keys_, mtx, custom_inserts_, id, num_producers,    ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, &mtx, custom_inserts_, id, num_producers,    ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -135,7 +135,7 @@ Producer::Producer(
     //std::shared_ptr<const std::vector<Request::Key>> load_keys,  
     std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
     std::shared_ptr<size_t> num_load_keys_,   /////////////////////////////
-    std::mutex& mute,   ///////////////////////
+    std::mutex * mute,   ///////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,

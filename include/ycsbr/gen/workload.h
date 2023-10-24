@@ -98,7 +98,7 @@ class PhasedWorkload::Producer {
           // std::shared_ptr<const std::vector<Request::Key>> load_keys,  //被加载的key
            std::shared_ptr< std::vector<Request::Key>> load_keys,  //被加载的key     ///////////////////////////
            std::shared_ptr<size_t> num_load_keys_,    ///////////////////////////////
-           std::mutex & mute,   //////////////////////////
+           std::mutex * mute,   //////////////////////////
            std::shared_ptr<
                const std::unordered_map<std::string, std::vector<Request::Key>>>
                custom_inserts,   //自定义插入键
@@ -132,7 +132,7 @@ class PhasedWorkload::Producer {
   size_t next_insert_key_index_;
 
   size_t num_load_previous;   //////////////////////////
-  std::mutex & mtx;   ///////////////////////////
+  std::mutex *mtx;   ///////////////////////////
 
   ValueGenerator valuegen_;
 
