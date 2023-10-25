@@ -149,12 +149,12 @@ inline void Executor<DatabaseInterface, WorkloadProducer>::WorkloadLoop() {   //
   std::vector<std::pair<Request::Key, std::string>> scan_out;
 
   tracker_.ResetSample();  //吞吐量采样开始
-  std::cerr <<"WorkloadLoop执行中..." <<std::endl;   ///////////////////////////
+   std::cerr <<"WorkloadLoop执行中..." <<std::endl;   ///////////////////////////
 
   // Run our trace slice.
   while (producer_.HasNext()) {
     const auto& req = producer_.Next();
-    std::cerr << "拿到request了" << std::endl;      /////////////////////////////
+    // std::cerr << "拿到request了" << std::endl;      /////////////////////////////
     bool measure_latency = false;
     if (++latency_sampling_counter_ >= options_.latency_sample_period) {  //每十个request测量一次request的run_time
       measure_latency = true;

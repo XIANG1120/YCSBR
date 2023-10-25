@@ -112,7 +112,7 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
   executors.reserve(num_threads_);   //预留num_threads_个位置存放Runners指针
 
   size_t executor_id = 0;
-  std::cerr << "RunWorkload执行中..." <<std::endl;  /////////////////////////
+  // std::cerr << "RunWorkload执行中..." <<std::endl;  /////////////////////////
   for (auto& producer : producers) {
     executors.push_back(std::make_unique<Runner>(
         &db_, std::move(producer), executor_id++, &can_start, options));  //*初始化Runner,并将其装入executors,producer和Runner一对一（id相同）

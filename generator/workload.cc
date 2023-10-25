@@ -223,7 +223,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
 //Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       ///////////////////////////////////
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
-  std::cerr<< "成功进入choosekey"<<std::endl;
+  // std::cerr<< "成功进入choosekey"<<std::endl;
   Phase & this_phase = phases_[current_phase_];
   Request::Key key;
   mtx.lock();  //加锁
@@ -236,11 +236,11 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {     
   if (index < *num_load_keys_) {
     key = (*load_keys_)[index];  //读    
     mtx.unlock();  //解锁   ////////////////////////////
-    std::cerr << "要出choosekey了" <<std::endl;
+    // std::cerr << "要出choosekey了" <<std::endl;
     return key;
   }
   mtx.unlock();  //解锁
-  std::cerr << "要出choosekey了" <<std::endl;
+  // std::cerr << "要出choosekey了" <<std::endl;
   return insert_keys_[index - *num_load_keys_];
 }
 
@@ -378,14 +378,14 @@ Request Producer::Next() {
 
   // Advance to the next request.
   --this_phase.num_requests_left;
-  std::cerr<< std::this_thread::get_id() << ":" << this_phase.num_requests_left<<std::endl;
+  // std::cerr<< std::this_thread::get_id() << ":" << this_phase.num_requests_left<<std::endl;
   if (this_phase.num_requests_left == 0) {
     ++current_phase_;
     /////////////////////////
-    std::cerr << "我要进入下一个阶段了" <<std::endl;
+    // std::cerr << "我要进入下一个阶段了" <<std::endl;
     if(current_phase_<phases_.size()){
       phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);
-      std::cerr << "我进入了下一个阶段" <<std::endl;
+      // std::cerr << "我进入了下一个阶段" <<std::endl;
     }
     /////////////////////////
     // Reset the operation selection distribution.
