@@ -223,7 +223,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
 //Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       ///////////////////////////////////
   ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
-  // std::cerr<< "成功进入choosekey"<<std::endl;
+   std::cerr<< "成功进入choosekey"<<std::endl;
   Phase & this_phase = phases_[current_phase_];
   Request::Key key;
   mtx.lock();  //加锁
@@ -236,16 +236,17 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {     
   if (index < *num_load_keys_) {
     key = (*load_keys_)[index];  //读    
     mtx.unlock();  //解锁   ////////////////////////////
-    // std::cerr << "要出choosekey了" <<std::endl;
+     std::cerr << "要出choosekey了" <<std::endl;
     return key;
   }
   mtx.unlock();  //解锁
-  // std::cerr << "要出choosekey了" <<std::endl;
+   std::cerr << "要出choosekey了" <<std::endl;
   return insert_keys_[index - *num_load_keys_];
 }
 
 ////////////////////////////////////
 Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) {
+  std::cerr<< "成功进入deletechoosekey"<<std::endl;
   Phase & this_phase = phases_[current_phase_];
   Request::Key key;
   mtx.lock();  //加锁
@@ -259,6 +260,7 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) 
     load_keys_->erase(load_keys_->begin() + index);  //写
     (*num_load_keys_)--;   //写
     mtx.unlock();  //解锁
+    std::cerr << "要出deletechoosekey了" <<std::endl;
     return key;
   }
   mtx.unlock();  //解锁
@@ -266,6 +268,7 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) 
   insert_keys_.erase(insert_keys_.begin() + index - *num_load_keys_);
   next_insert_key_index_--;
   this_phase.IncreaseItemCountBy(-1);
+  std::cerr << "要出deletechoosekey了" <<std::endl;
 
   return key;
 }
