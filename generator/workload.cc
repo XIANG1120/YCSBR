@@ -381,6 +381,8 @@ Request Producer::Next() {
 
   // Advance to the next request.
   --this_phase.num_requests_left;
+  if(this_phase.num_requests_left==523400) {std::cerr<<std::this_thread::get_id() << ":" <<"已完成三分之二"<<std::endl;}
+  if(this_phase.num_requests_left==1046800) {std::cerr<<std::this_thread::get_id() << ":" <<"已完成三分之一"<<std::endl;}
   // std::cerr<< std::this_thread::get_id() << ":" << this_phase.num_requests_left<<std::endl;
   if (this_phase.num_requests_left == 0) {
     ++current_phase_;
