@@ -126,7 +126,7 @@ inline void ZipfianChooser::IncreaseItemCountBy(const size_t delta) {   //!item_
   const double prev_zeta_n = zeta_n_;
   item_count_ += delta;
   ///////////////////////////////
-  if(delta>=){
+  if(delta>=0){
     zeta_n_ = ComputeZetaN(item_count_, theta_, prev_item_count, prev_zeta_n);
     UpdateETA();
   }
