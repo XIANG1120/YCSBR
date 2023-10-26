@@ -32,6 +32,14 @@ class ZipfianChooser : public Chooser {
   // Will recompute constants for `new_item_count`. 
   void SetItemCount(size_t new_item_count) override;  //!将重新设置item_count_
 
+  ////////////////////////////
+  double ComputeZetaNForDecrease(const size_t item_count,    
+                                           const double theta,
+                                           const size_t prev_item_count,
+                                           const double prev_zeta_n);
+  void UpdateETAForDecrease();
+  ///////////////////////////
+
  protected:
   size_t item_count() const;
 
@@ -117,8 +125,16 @@ inline void ZipfianChooser::IncreaseItemCountBy(const size_t delta) {   //!item_
   const size_t prev_item_count = item_count_;
   const double prev_zeta_n = zeta_n_;
   item_count_ += delta;
-  zeta_n_ = ComputeZetaN(item_count_, theta_, prev_item_count, prev_zeta_n);
-  UpdateETA();
+  ///////////////////////////////
+  if(delta>=){
+    zeta_n_ = ComputeZetaN(item_count_, theta_, prev_item_count, prev_zeta_n);
+    UpdateETA();
+  }
+  else{
+    zeta_n_ = ComputeZetaNForDecrease(item_count_, theta_, prev_item_count, prev_zeta_n);
+    UpdateETAForDecrease();
+  }
+  ////////////////////////////////
 }
 
 inline void ZipfianChooser::SetItemCount(const size_t new_item_count) {   //!重新设置item_count为new_item_count，并用缓存查找/更新zeta_n_，更新eta_
@@ -148,6 +164,27 @@ inline void ZipfianChooser::UpdateETA() {    //!计算eta_
   eta_ = (1 - std::pow(2.0 / item_count_, 1.0 - theta_)) /
          (1.0 - zeta2theta_ / zeta_n_);
 }
+
+////////////////////////////////////
+inline double ZipfianChooser::ComputeZetaNForDecrease(const size_t item_count,    
+                                           const double theta,
+                                           const size_t prev_item_count,
+                                           const double prev_zeta_n) {
+  assert(item_count < prev_item_count);
+  size_t item_count_so_far = item_count;
+  double zeta_so_far = prev_zeta_n;
+  for (; item_count_so_far < prev_item_count; ++item_count_so_far) {
+    zeta_so_far +=
+        1.0 / std::pow(static_cast<double>(item_count_so_far + 1), theta);
+  }
+  return zeta_so_far;
+}
+
+inline void ZipfianChooser::UpdateETAForDecrease() {   //! 更新减少条目数量后的ETA
+  eta_ = (1 - std::pow(2.0 / item_count_, 1.0 - theta_)) /
+         (1.0 - zeta2theta_ / zeta_n_);
+}
+/////////////////////////////////////
 
 }  // namespace gen
 }  // namespace ycsbr
