@@ -253,7 +253,7 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
     return key;
   }else{   //一开始在delete_map_insert里面查找
     mtx.unlock();
-    index = index - *num_load_keys_- *map_size_;
+    index = index - *num_load_keys_+ *map_size_;
     size_t target = IntoInsertKeys(index+*num_load_keys_);
     while (target!=0)
     {
@@ -261,21 +261,21 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
       auto result = delete_map_insert_.find(index+*num_load_keys_);
       if(result==delete_map_insert_.end()) target--;
     }
-    return insert_keys_[index - *num_load_keys_];
+    return insert_keys_[index];
   }
 }
 
 size_t Producer::IntoLoadKeys(size_t index){
 if(*map_size_>0){
         auto result = delete_map_->lower_bound(index);
-        if (result == delete_map_->end() && index > delete_map_->begin()->first) {  //map里面的元素全都小于目标值
+        if (result == delete_map_->end() ) {  //map里面的元素全都小于目标值
           return *map_size_;
         }
         else if(result->first == index){   //找到了与目标值相等的元素
           return result->second;
         }
         else if(result->first > index){   //找到了第一个大于目标值的元素
-          if(map_size_insert!=1)
+          if(*map_size_!=1)
           {
           return result->second-1;
           }
@@ -287,7 +287,7 @@ if(*map_size_>0){
 size_t Producer::IntoInsertKeys(size_t  index) {
   if(map_size_insert>0){
         auto result = delete_map_insert_.lower_bound(index);
-        if (result == delete_map_insert_.end() && index > delete_map_insert_.begin()->first) {
+        if (result == delete_map_insert_.end() ) {
           return  map_size_insert;
         }
         else if(result->first == index){
@@ -337,10 +337,10 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) 
       auto result = delete_map_insert_.find(index+*num_load_keys_);
       if(result==delete_map_insert_.end()) target--;
     }
-    delete_map_insert_.emplace(index,map_size_insert+1);
+    delete_map_insert_.emplace(index+*num_load_keys_,map_size_insert+1);
     map_size_insert++;
     this_phase.IncreaseItemCountBy(-1);
-    return insert_keys_[index - *num_load_keys_];
+    return insert_keys_[index];
   }
 }
 ////////////////////////////////////
