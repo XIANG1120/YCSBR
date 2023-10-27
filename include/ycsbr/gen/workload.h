@@ -7,6 +7,9 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <map>
+#include <set>   //////////////////////////
+#include <unordered_set> ///////////////////////
 
 #include "ycsbr/gen/config.h"
 #include "ycsbr/gen/phase.h"
@@ -77,6 +80,7 @@ class PhasedWorkload {
   uint32_t prng_seed_;
   std::shared_ptr<WorkloadConfig> config_;
   std::shared_ptr<std::vector<Request::Key>> load_keys_;
+  std::shared_ptr<std::set<Request::Key>> load_keys_set;   //////////////////////////
   std::shared_ptr<std::unordered_map<std::string, std::vector<Request::Key>>>
       custom_inserts_;
 };
@@ -99,14 +103,18 @@ class PhasedWorkload::Producer {
            std::shared_ptr< std::vector<Request::Key>> load_keys,  //被加载的key     ///////////////////////////
            std::shared_ptr<size_t> num_load_keys_,    ///////////////////////////////
            std::mutex & mute,   //////////////////////////
+           std::shared_ptr<std::map<size_t,size_t>> map,   /////////////////////////
+           std::shared_ptr<std::unordered_set<Request::Key>> keys,   //////////////////////////
+           std::shared_ptr<std::size_t> map_size,   //////////////////////////
            std::shared_ptr<
                const std::unordered_map<std::string, std::vector<Request::Key>>>
                custom_inserts,   //自定义插入键
            ProducerID id, size_t num_producers, uint32_t prng_seed);  //producer ID,生产者数量，prng_seed
 
-  //Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);
-  Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);    /////////////////////////////
+  Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);    
   Request::Key deleteChooseKey(const std::unique_ptr<Chooser>& chooser);    //////////////////////////////
+  size_t IntoInsertKeys(size_t  index);   /////////////////////////
+  size_t IntoLoadKeys(size_t  index);    //////////////////////////
 
   ProducerID id_;
   size_t num_producers_;
@@ -121,7 +129,7 @@ class PhasedWorkload::Producer {
   std::shared_ptr< std::vector<Request::Key>> load_keys_;    /////////////////////
   //size_t num_load_keys_;
   std::shared_ptr<size_t> num_load_keys_;   /////////////////////////
-
+  std::shared_ptr<std::size_t> map_size_;    ///////////////////////////////////
   // Custom keys to insert.   //++自定义插入key
   std::shared_ptr<
       const std::unordered_map<std::string, std::vector<Request::Key>>>
@@ -129,10 +137,15 @@ class PhasedWorkload::Producer {
 
   // Stores all the keys this producer will eventually insert.//++存储producer的每个阶段最终将插入的所有key
   std::vector<Request::Key> insert_keys_;
+  std::vector<Request::Key> delete_keys_;    ///////////////////////
   size_t next_insert_key_index_;
-
+  
+  std::shared_ptr<std::unordered_set<Request::Key>> keys_;
   size_t num_load_previous;   //////////////////////////
   std::mutex & mtx;   ///////////////////////////
+  std::shared_ptr<std::map<size_t,size_t>> delete_map_;   ///////////////////////
+  std::map<size_t,size_t> delete_map_insert_;   ///////////////////////////
+  size_t map_size_insert;   ////////////////////////////
 
   ValueGenerator valuegen_;
 

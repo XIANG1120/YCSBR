@@ -121,6 +121,9 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   /////////////////////////////
   size_t num_load = load_keys_->size();
   std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
+  std::shared_ptr<std::map<size_t,size_t>> map_= std::make_shared<std::map<size_t,size_t>>();
+  std::shared_ptr<std::unordered_set<Request::Key>> keys;
+  std::shared_ptr<std::size_t> map_size = std::make_shared<std::size_t>(0);
   //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
     producers.push_back(
@@ -128,7 +131,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.//++每个Producer的工作负载应该是确定性的，但我们希望每个Producer彼此产生不同的requests。因此，我们在其种子中包含producer ID。
         //Producer(config_, load_keys_,  custom_inserts_, id, num_producers, 
-        Producer(config_, load_keys_, num_load_keys_, mute, custom_inserts_, id, num_producers,    ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, mute,  map_,  keys, map_size, custom_inserts_, id, num_producers,  ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -138,8 +141,11 @@ Producer::Producer(
     std::shared_ptr<const WorkloadConfig> config,
     //std::shared_ptr<const std::vector<Request::Key>> load_keys,  
     std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
-    std::shared_ptr<size_t> num_load_keys_,   /////////////////////////////
+    std::shared_ptr<size_t> num_load_keys,   /////////////////////////////
     std::mutex & mute,   ///////////////////////
+    std::shared_ptr<std::map<size_t,size_t>> map,   /////////////////////////
+    std::shared_ptr<std::unordered_set<Request::Key>> keys,   //////////////////////////
+    std::shared_ptr<std::size_t> map_size,    //////////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,
@@ -151,11 +157,14 @@ Producer::Producer(
       current_phase_(0),
       load_keys_(std::move(load_keys)),
       //num_load_keys_(load_keys_->size()),
-      num_load_keys_(num_load_keys_),    /////////////////////////
+      num_load_keys_(num_load_keys),    /////////////////////////
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
-      num_load_previous(load_keys_->size()),          //////////////////////////////////
+      num_load_previous(load_keys->size()),          //////////////////////////////////
       mtx(mute),     ///////////////////////////
+      delete_map_(map),   /////////////////////////
+      map_size_(map_size),    ////////////////////////
+      map_size_insert(0),
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
                 kNumUniqueValues, prng_),
       op_dist_(0, 99) {}
@@ -171,7 +180,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
   // Generate the inserts.  //++为每个phase生成inserts
   size_t insert_index = 0;
   for (auto& phase : phases_) {    //*遍历每个phase,如果phase.num_inserts=0则continue
-    if (phase.num_inserts == 0) continue;
+    if (phase.num_inserts == 0) continue;      //////////////////////
     const auto custom_insert_info = config_->GetCustomInsertsForPhase(phase);   //返回std::optional<WorkloadConfig::CustomInserts>类型,包含自定义插入的name和offset
     if (custom_insert_info.has_value()) {
       // This phase uses a custom insert list.   //++这个阶段用了一个自定义插入列表
@@ -220,28 +229,78 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
   }
 }
 
-//Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
-Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       ///////////////////////////////////
-  ///////////////////////   用来判断load_keys_中有没有发生删除操作，并修改this_phase的条目数
+Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       
+  ///////////////////////  
   //  std::cerr<< "成功进入choosekey"<<std::endl;
   Phase & this_phase = phases_[current_phase_];
   Request::Key key;
-  mtx.lock();  //加锁
-  size_t num_load = *num_load_keys_;   //读
+  mtx.lock();
+  size_t num_load = *num_load_keys_-*map_size_;   //读
   if (num_load_previous - num_load > 0) {
     this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
-  num_load_previous = num_load;      //读
-  ////////////////////////
-  const size_t index = chooser->Next(prng_);
-  if (index < *num_load_keys_) {
-    key = (*load_keys_)[index];  //读    
-    mtx.unlock();  //解锁   ////////////////////////////
-    //  std::cerr << "要出choosekey了" <<std::endl;
+  num_load_previous = num_load;  //读
+  size_t index = chooser->Next(prng_);
+  if( *num_load_keys_-*map_size_ > index){    //一开始在load_keys_里面查找
+    size_t target = IntoLoadKeys(index);
+    while (target!=0)
+    {
+      index++;
+      auto result = delete_map_->find(index);
+      if(result==delete_map_->end()) target--;
+    }
+    key = (*load_keys_)[index];  
+    mtx.unlock();
     return key;
+  }else{   //一开始在delete_map_insert里面查找
+    mtx.unlock();
+    index = index - *num_load_keys_- *map_size_;
+    size_t target = IntoInsertKeys(index+*num_load_keys_);
+    while (target!=0)
+    {
+      index++;
+      auto result = delete_map_insert_.find(index+*num_load_keys_);
+      if(result==delete_map_insert_.end()) target--;
+    }
+    return insert_keys_[index - *num_load_keys_];
   }
-  mtx.unlock();  //解锁
-  //  std::cerr << "要出choosekey了" <<std::endl;
-  return insert_keys_[index - *num_load_keys_];
+}
+
+size_t Producer::IntoLoadKeys(size_t index){
+if(*map_size_>0){
+        auto result = delete_map_->lower_bound(index);
+        if (result == delete_map_->end() && index > delete_map_->begin()->first) {  //map里面的元素全都小于目标值
+          return *map_size_;
+        }
+        else if(result->first == index){   //找到了与目标值相等的元素
+          return result->second;
+        }
+        else if(result->first > index){   //找到了第一个大于目标值的元素
+          if(map_size_insert!=1)
+          {
+          return result->second-1;
+          }
+        }
+    }
+    return 0;
+}
+
+size_t Producer::IntoInsertKeys(size_t  index) {
+  if(map_size_insert>0){
+        auto result = delete_map_insert_.lower_bound(index);
+        if (result == delete_map_insert_.end() && index > delete_map_insert_.begin()->first) {
+          return  map_size_insert;
+        }
+        else if(result->first == index){
+          return result->second;
+        }
+        else if(result->first > index){
+          if(map_size_insert!=1)
+          {
+            return result->second-1;
+          }
+        }
+    }
+    return 0;
 }
 
 ////////////////////////////////////
@@ -249,28 +308,39 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) 
   // std::cerr<< "成功进入deletechoosekey"<<std::endl;
   Phase & this_phase = phases_[current_phase_];
   Request::Key key;
-  mtx.lock();  //加锁
-  size_t num_load = *num_load_keys_;   //读
+  mtx.lock();
+  size_t num_load = *num_load_keys_-*map_size_;   //读
   if (num_load_previous - num_load > 0) {
     this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
   num_load_previous = num_load;  //读
-  const size_t index = chooser->Next(prng_);
-  if (index < *num_load_keys_) {
-    key = (*load_keys_)[index];   //读
-    load_keys_->erase(load_keys_->begin() + index);  //写
-    (*num_load_keys_)--;   //写
-    mtx.unlock();  //解锁
-    // std::cerr << "要出deletechoosekey了" <<std::endl;
+  size_t index = chooser->Next(prng_);
+  if( *num_load_keys_-*map_size_ > index){    //一开始在load_keys_里面查找
+    size_t target = IntoLoadKeys(index);
+    while (target!=0)
+    {
+      index++;
+      auto result = delete_map_->find(index);
+      if(result==delete_map_->end()) target--;
+    }
+    key = (*load_keys_)[index];  
+    delete_map_->emplace(index,*map_size_+1);
+    (*map_size_)++;
+    mtx.unlock();
     return key;
+  }else{   //一开始在delete_map_insert里面查找
+    mtx.unlock();
+    index = index - (*num_load_keys_- *map_size_);
+    size_t target = IntoInsertKeys(index+*num_load_keys_);
+    while (target!=0)
+    {
+      index++;
+      auto result = delete_map_insert_.find(index+*num_load_keys_);
+      if(result==delete_map_insert_.end()) target--;
+    }
+    delete_map_insert_.emplace(index,map_size_insert+1);
+    map_size_insert++;
+    return insert_keys_[index - *num_load_keys_];
   }
-  mtx.unlock();  //解锁
-  key = insert_keys_[index - *num_load_keys_];
-  insert_keys_.erase(insert_keys_.begin() + index - *num_load_keys_);
-  next_insert_key_index_--;
-  this_phase.IncreaseItemCountBy(-1);
-  // std::cerr << "要出deletechoosekey了" <<std::endl;
-
-  return key;
 }
 ////////////////////////////////////
 
@@ -350,6 +420,7 @@ Request Producer::Next() {
     case Request::Operation::kDelete: {
       to_return =
           Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser), 0, nullptr, 0);
+      this_phase.IncreaseItemCountBy(-1);
       break;
     }
     //////////////////////////////
@@ -389,7 +460,8 @@ Request Producer::Next() {
     /////////////////////////
     // std::cerr << "我要进入下一个阶段了" <<std::endl;
     if(current_phase_<phases_.size()){
-      phases_[current_phase_].SetItemCount(*num_load_keys_ + next_insert_key_index_);
+      std::lock_guard<std::mutex> lock(mtx);
+      phases_[current_phase_].SetItemCount(*num_load_keys_ + insert_keys_.size()-*map_size_-map_size_insert);
       // std::cerr << "我进入了下一个阶段" <<std::endl;
     }
     /////////////////////////

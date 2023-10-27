@@ -78,7 +78,7 @@ struct Phase {
 
   size_t num_inserts, num_inserts_left;
   size_t num_requests, num_requests_left;
-  // size_t num_deletes;   ///////////////////////////
+  size_t num_deletes, num_deletes_left;   ///////////////////////////
 
   uint32_t read_thres, rmw_thres, negativeread_thres, scan_thres, update_thres;
   uint32_t delete_thres;              //////////////////////////////

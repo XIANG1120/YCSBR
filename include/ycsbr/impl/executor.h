@@ -110,7 +110,7 @@ inline std::optional<std::chrono::nanoseconds> MeasurementHelper(     //!测量c
 template <class DatabaseInterface, typename WorkloadProducer>
 inline void Executor<DatabaseInterface, WorkloadProducer>::operator()() {      //!每个线程都运行
   // Run any needed preparation code.  //++运行任何需要的准备代码
-  producer_.Prepare();  //*初始化phase_和insert_keys_
+  producer_.Prepare();  //*初始化phase_和insert_keys_和delete_keys_
 
   // Sets up the throughput sample output file, if needed.  //++如果需要的话，设置吞吐量样本输出文件
   SetupOutputFileIfNeeded();

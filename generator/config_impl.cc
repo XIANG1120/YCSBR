@@ -391,6 +391,7 @@ Phase WorkloadConfigImpl::GetPhase(const PhaseID phase_id,
   if (phase_config[kDeleteOpKey]) {   //!delete      
     phase.delete_thres = 
         phase_config[kDeleteOpKey][kProportionKey].as<uint32_t>();
+    phase.num_deletes = static_cast<size_t>(phase.num_requests * (insert_pct / 100.0));  //计算delete个数
     //创建chooser
     phase.delete_chooser =
         CreateChooser(lock, phase_config[kDeleteOpKey][kDistributionKey],
