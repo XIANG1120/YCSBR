@@ -160,7 +160,7 @@ Producer::Producer(
       num_load_keys_(num_load_keys),    /////////////////////////
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
-      num_load_previous(load_keys->size()),          //////////////////////////////////
+      num_load_previous(*num_load_keys),          //////////////////////////////////
       mtx(mute),     ///////////////////////////
       delete_map_(map),   /////////////////////////
       map_size_(map_size),    ////////////////////////
