@@ -339,6 +339,7 @@ Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) 
     }
     delete_map_insert_.emplace(index,map_size_insert+1);
     map_size_insert++;
+    this_phase.IncreaseItemCountBy(-1);
     return insert_keys_[index - *num_load_keys_];
   }
 }
@@ -420,7 +421,6 @@ Request Producer::Next() {
     case Request::Operation::kDelete: {
       to_return =
           Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser), 0, nullptr, 0);
-      this_phase.IncreaseItemCountBy(-1);
       break;
     }
     //////////////////////////////
