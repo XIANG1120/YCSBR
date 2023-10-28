@@ -122,7 +122,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   size_t num_load = load_keys_->size();
   std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
   std::shared_ptr<std::map<size_t,size_t>> map_= std::make_shared<std::map<size_t,size_t>>();
-  std::shared_ptr<std::unordered_set<Request::Key>> keys;
+  std::shared_ptr<std::unordered_set<Request::Key>> keys = std::make_shared<std::unordered_set<Request::Key>>();
   std::shared_ptr<std::size_t> map_size = std::make_shared<std::size_t>(0);
   std::shared_ptr<std::set<Request::Key>> set_ = std::make_shared<std::set<Request::Key>>(load_keys_->begin(),load_keys_->end());
   //////////////////////////////
