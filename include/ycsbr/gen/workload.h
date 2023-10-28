@@ -106,6 +106,7 @@ class PhasedWorkload::Producer {
            std::shared_ptr<std::map<size_t,size_t>> map,   /////////////////////////
            std::shared_ptr<std::unordered_set<Request::Key>> keys,   //////////////////////////
            std::shared_ptr<std::size_t> map_size,   //////////////////////////
+           std::shared_ptr<std::set<Request::Key>> set_,  ////////////////////////
            std::shared_ptr<
                const std::unordered_map<std::string, std::vector<Request::Key>>>
                custom_inserts,   //自定义插入键
@@ -139,8 +140,11 @@ class PhasedWorkload::Producer {
   std::vector<Request::Key> insert_keys_;
   std::vector<Request::Key> delete_keys_;    ///////////////////////
   size_t next_insert_key_index_;
+  size_t next_delete_key_index_;   ////////////////////////////
   
   std::shared_ptr<std::unordered_set<Request::Key>> keys_;
+  std::shared_ptr<std::set<Request::Key>> load_keys_set;
+
   size_t num_load_previous;   //////////////////////////
   std::mutex & mtx;   ///////////////////////////
   std::shared_ptr<std::map<size_t,size_t>> delete_map_;   ///////////////////////

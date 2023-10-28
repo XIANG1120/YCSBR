@@ -124,6 +124,17 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
     executor->WaitForReady();
   }
 
+  /////////////////////////
+  executors[0]->producer_.load_keys_->clear();
+  executors[0]->producer_.load_keys_->insert(executors[0]->producer_.load_keys_set->begin(),executors[0]->producer_.load_keys_set->end());
+  executors[0]->producer_.num_load_keys_ = executors[0]->producer_.load_keys_->size();
+  for ( auto& executor : executors) {
+    for (auto& phase : executor->producer_.phase_) {
+      phase.SetItemCount(*(executor->producer_.num_load_keys_));
+    }
+  }
+  ////////////////////////
+
   // Start the workload and the timer. 
   const auto start = std::chrono::steady_clock::now();
   can_start.Raise();   //告诉所有的线程可以开始运行工作负载了

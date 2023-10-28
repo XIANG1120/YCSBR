@@ -124,6 +124,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   std::shared_ptr<std::map<size_t,size_t>> map_= std::make_shared<std::map<size_t,size_t>>();
   std::shared_ptr<std::unordered_set<Request::Key>> keys;
   std::shared_ptr<std::size_t> map_size = std::make_shared<std::size_t>(0);
+  std::shared_ptr<std::set<Request::Key>> set_ = std::make_shared<std::set<Request::Key>>(load_keys_->begin(),load_keys_->end());
   //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
     producers.push_back(
@@ -131,7 +132,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.//++每个Producer的工作负载应该是确定性的，但我们希望每个Producer彼此产生不同的requests。因此，我们在其种子中包含producer ID。
         //Producer(config_, load_keys_,  custom_inserts_, id, num_producers, 
-        Producer(config_, load_keys_, num_load_keys_, mute,  map_,  keys, map_size, custom_inserts_, id, num_producers,  ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, mute,  map_,  keys, map_size,set_, custom_inserts_, id, num_producers,  ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -146,6 +147,7 @@ Producer::Producer(
     std::shared_ptr<std::map<size_t,size_t>> map,   /////////////////////////
     std::shared_ptr<std::unordered_set<Request::Key>> keys,   //////////////////////////
     std::shared_ptr<std::size_t> map_size,    //////////////////////////
+    std::shared_ptr<std::set<Request::Key>> set_, /////////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
         custom_inserts,
@@ -160,11 +162,13 @@ Producer::Producer(
       num_load_keys_(num_load_keys),    /////////////////////////
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
+      next_delete_key_index_(0),  ///////////////////////////
       num_load_previous(*num_load_keys),          //////////////////////////////////
       mtx(mute),     ///////////////////////////
       delete_map_(map),   /////////////////////////
       map_size_(map_size),    ////////////////////////
-      map_size_insert(0),
+      map_size_insert(0),   //////////////////////
+      load_keys_set(std::move(set_)),  //////////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
                 kNumUniqueValues, prng_),
       op_dist_(0, 99) {}
@@ -220,142 +224,49 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
     insert_index = insert_keys_.size();
   }  //遍历phase结束
 
-  // Set the phase chooser item counts based on the number of inserts the
-  // producer will make in each phase.  //++根据producer在每个phase中进行的插入数量设置phase chooser item counts。
-  size_t count = load_keys_->size();  //每个producer都相同
-  for (auto& phase : phases_) {
+  ////////////////////////////////     处理delete_keys_
+  {
+  std::lock_guard<std::mutex> lock(mtx);
+  size_t count = load_keys_->size();
+  //如果一个phase有delete，就不会再有insert
+  for (auto& phase : phases_) {    //*遍历每个phase,如果phase.num_deletes=0则continue
     phase.SetItemCount(count);  //为每个phase设置itemcount
-    count += phase.num_inserts;
+    count -= phase.num_deletes;
+    if (phase.num_deletes == 0) continue;      //////////////////////
+    for(int i=0;i<phase.num_deletes;i++){
+      size_t index = phase.delete_chooser->Next(prng_);
+      auto result = keys_->insert((*load_keys_)[index]);
+      if(!result.second) {
+        delete_keys_.emplace_back((*load_keys_)[index]);
+        load_keys_set->erase((*load_keys_)[index]);
+      }
+      else i--;
+    }
+  }  //遍历phase结束
   }
+  ////////////////////////////////
 }
 
 Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {       
-  ///////////////////////  
   //  std::cerr<< "成功进入choosekey"<<std::endl;
-  Phase & this_phase = phases_[current_phase_];
-  Request::Key key;
-  mtx.lock();
-  size_t num_load = *num_load_keys_-*map_size_;   //读
-  if (num_load_previous - num_load > 0) {
-    this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
-  num_load_previous = num_load;  //读
-  size_t index = chooser->Next(prng_);
-  if( *num_load_keys_-*map_size_ > index){    //一开始在load_keys_里面查找
-    size_t target = IntoLoadKeys(index);
-    while (target!=0)
-    {
-      index++;
-      auto result = delete_map_->find(index);
-      if(result==delete_map_->end()) target--;
-    }
-    key = (*load_keys_)[index];  
-    mtx.unlock();
-    return key;
-  }else{   //一开始在delete_map_insert里面查找
-    mtx.unlock();
-    index = index - *num_load_keys_+ *map_size_;
-    size_t target = IntoInsertKeys(index+*num_load_keys_);
-    while (target!=0)
-    {
-      index++;
-      auto result = delete_map_insert_.find(index+*num_load_keys_);
-      if(result==delete_map_insert_.end()) target--;
-    }
-    return insert_keys_[index];
+    const size_t index = chooser->Next(prng_);
+  if (index < *num_load_keys_) {
+    return (*load_keys_)[index];
   }
+  return insert_keys_[index - *num_load_keys_];
 }
-
-size_t Producer::IntoLoadKeys(size_t index){
-if(*map_size_>0){
-        auto result = delete_map_->lower_bound(index);
-        if (result == delete_map_->end() ) {  //map里面的元素全都小于目标值
-          return *map_size_;
-        }
-        else if(result->first == index){   //找到了与目标值相等的元素
-          return result->second;
-        }
-        else if(result->first > index){   //找到了第一个大于目标值的元素
-          if(*map_size_!=1)
-          {
-          return result->second-1;
-          }
-        }
-    }
-    return 0;
-}
-
-size_t Producer::IntoInsertKeys(size_t  index) {
-  if(map_size_insert>0){
-        auto result = delete_map_insert_.lower_bound(index);
-        if (result == delete_map_insert_.end() ) {
-          return  map_size_insert;
-        }
-        else if(result->first == index){
-          return result->second;
-        }
-        else if(result->first > index){
-          if(map_size_insert!=1)
-          {
-            return result->second-1;
-          }
-        }
-    }
-    return 0;
-}
-
-////////////////////////////////////
-Request::Key Producer::deleteChooseKey(const std::unique_ptr<Chooser>& chooser) {
-  // std::cerr<< "成功进入deletechoosekey"<<std::endl;
-  Phase & this_phase = phases_[current_phase_];
-  Request::Key key;
-  mtx.lock();
-  size_t num_load = *num_load_keys_-*map_size_;   //读
-  if (num_load_previous - num_load > 0) {
-    this_phase.IncreaseItemCountBy(num_load - num_load_previous); }
-  num_load_previous = num_load;  //读
-  size_t index = chooser->Next(prng_);
-  if( *num_load_keys_-*map_size_ > index){    //一开始在load_keys_里面查找
-    size_t target = IntoLoadKeys(index);
-    while (target!=0)
-    {
-      index++;
-      auto result = delete_map_->find(index);
-      if(result==delete_map_->end()) target--;
-    }
-    key = (*load_keys_)[index];  
-    delete_map_->emplace(index,*map_size_+1);
-    (*map_size_)++;
-    mtx.unlock();
-    return key;
-  }else{   //一开始在delete_map_insert里面查找
-    mtx.unlock();
-    index = index - (*num_load_keys_- *map_size_);
-    size_t target = IntoInsertKeys(index+*num_load_keys_);
-    while (target!=0)
-    {
-      index++;
-      auto result = delete_map_insert_.find(index+*num_load_keys_);
-      if(result==delete_map_insert_.end()) target--;
-    }
-    delete_map_insert_.emplace(index+*num_load_keys_,map_size_insert+1);
-    map_size_insert++;
-    this_phase.IncreaseItemCountBy(-1);
-    return insert_keys_[index];
-  }
-}
-////////////////////////////////////
 
 Request Producer::Next() {
   assert(HasNext());
   Phase& this_phase = phases_[current_phase_];
 
-  Request::Operation next_op = Request::Operation::kInsert;
+  Request::Operation next_op;
 
   // If there are more requests left than inserts, we can randomly decide what
   // request to do next. Otherwise we must do an insert. Note that we adjust
   // `op_dist_` as needed to ensure that we do not generate an insert once
   // `this_phase.num_inserts_left == 0`.//++如果剩下的请求比插入的多，我们可以随机决定下一步要做什么请求。否则我们必须插入。请注意，我们根据需要调整`op_dist_`，以确保不会生成一次插入`this_phase.num_inserts_left=0`。
-  if (this_phase.num_inserts_left < this_phase.num_requests_left) {
+  if (this_phase.num_inserts_left < this_phase.num_requests_left  ||  this_phase.num_deletes_left < this_phase.num_requests_left) {
     // Decide what operation to do.
     const uint32_t choice = op_dist_(prng_);
     if (choice < this_phase.read_thres) {
@@ -371,11 +282,18 @@ Request Producer::Next() {
     //////////////////
     } else if (choice < this_phase.delete_thres) {
       next_op = Request::Operation::kDelete;
+      assert(this_phase.num_deletes_left > 0);   
     ///////////////////
     } else {
       next_op = Request::Operation::kInsert;
       assert(this_phase.num_inserts_left > 0);
     }
+  }
+  else if (this_phase.num_inserts_left > 0){
+    next_op = Request::Operation::kInsert;
+  }
+  else if (this_phase.num_deletes_left > 0){
+    next_op = Request::Operation::kDelete;
   }
 
   Request to_return;
@@ -419,8 +337,18 @@ Request Producer::Next() {
 
     //////////////////////////////
     case Request::Operation::kDelete: {
-      to_return =
-          Request(Request::Operation::kDelete, deleteChooseKey(this_phase.delete_chooser), 0, nullptr, 0);
+      to_return = Request(Request::Operation::kDelete,
+                          insert_keys_[next_insert_key_index_], 0,
+                          nullptr, 0);
+      ++next_delete_key_index_;
+      --this_phase.num_deletes_left;
+      if (this_phase.num_deletes_left ==0) {
+        if (this_phase.update_thres >0 ){
+          op_dist_ = std::uniform_int_distribution<uint32_t>( 0 ,this_phase.update_thres-1);
+        } else {
+          assert(this_phase.num_requests_left == 1);
+        }
+      }
       break;
     }
     //////////////////////////////
