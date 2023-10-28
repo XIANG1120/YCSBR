@@ -169,6 +169,7 @@ Producer::Producer(
       map_size_(map_size),    ////////////////////////
       map_size_insert(0),   //////////////////////
       load_keys_set(std::move(set_)),  //////////////////////////////
+      keys_(keys),   ///////////////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
                 kNumUniqueValues, prng_),
       op_dist_(0, 99) {}
