@@ -126,8 +126,10 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
 
   /////////////////////////
   executors[0]->GetProducer().GetLoadKeys()->clear();
-  executors[0]->GetProducer().GetLoadKeys()->insert(executors[0]->GetProducer().GetLoadKeysSet()->begin(),executors[0]->GetProducer().GetLoadKeysSet()->end());
+  //executors[0]->GetProducer().GetLoadKeys()->insert(executors[0]->GetProducer().GetLoadKeysSet()->begin(),executors[0]->GetProducer().GetLoadKeysSet()->end());
+  std::move(executors[0]->GetProducer().GetLoadKeysSet()->begin(),executors[0]->GetProducer().GetLoadKeysSet()->end(),std::back_inserter(*(executors[0]->GetProducer().GetLoadKeys())))
   *(executors[0]->GetProducer().GetNumLoadKeys()) = executors[0]->GetProducer().GetLoadKeys()->size();
+  executors[0]->GetProducer().GetLoadKeys()->sort();
   size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
   for ( auto& executor : executors) {
     for (auto& phase : executor->GetProducer().GetPhases()) {
