@@ -119,11 +119,8 @@ std::vector<Producer> PhasedWorkload::GetProducers(
   std::vector<Producer> producers;
   producers.reserve(num_producers);
   /////////////////////////////
-  size_t num_load = load_keys_->size();
-  std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(num_load);
-  std::shared_ptr<std::map<size_t,size_t>> map_= std::make_shared<std::map<size_t,size_t>>();
+  std::shared_ptr<size_t> num_load_keys_ = std::make_shared<size_t>(load_keys_->size());
   std::shared_ptr<std::unordered_set<Request::Key>> keys = std::make_shared<std::unordered_set<Request::Key>>();
-  std::shared_ptr<std::size_t> map_size = std::make_shared<std::size_t>(0);
   std::shared_ptr<std::set<Request::Key>> set_ = std::make_shared<std::set<Request::Key>>(load_keys_->begin(),load_keys_->end());
   //////////////////////////////
   for (ProducerID id = 0; id < num_producers; ++id) {
@@ -132,7 +129,7 @@ std::vector<Producer> PhasedWorkload::GetProducers(
         // Producer to produce different requests from each other. So we include
         // the producer ID in its seed.//++每个Producer的工作负载应该是确定性的，但我们希望每个Producer彼此产生不同的requests。因此，我们在其种子中包含producer ID。
         //Producer(config_, load_keys_,  custom_inserts_, id, num_producers, 
-        Producer(config_, load_keys_, num_load_keys_, mute,  map_,  keys, map_size,set_, custom_inserts_, id, num_producers,  ///////////////////////////
+        Producer(config_, load_keys_, num_load_keys_, mute,  keys, set_, custom_inserts_, id, num_producers,  ///////////////////////////
                  prng_seed_ ^ id));
   }
   return producers;
@@ -144,9 +141,7 @@ Producer::Producer(
     std::shared_ptr< std::vector<Request::Key>> load_keys,   /////////////////////////////
     std::shared_ptr<size_t> num_load_keys,   /////////////////////////////
     std::mutex & mute,   ///////////////////////
-    std::shared_ptr<std::map<size_t,size_t>> map,   /////////////////////////
     std::shared_ptr<std::unordered_set<Request::Key>> keys,   //////////////////////////
-    std::shared_ptr<std::size_t> map_size,    //////////////////////////
     std::shared_ptr<std::set<Request::Key>> set_, /////////////////////////
     std::shared_ptr<
         const std::unordered_map<std::string, std::vector<Request::Key>>>
@@ -163,11 +158,7 @@ Producer::Producer(
       custom_inserts_(std::move(custom_inserts)),
       next_insert_key_index_(0),
       next_delete_key_index_(0),  ///////////////////////////
-      num_load_previous(*num_load_keys),          //////////////////////////////////
       mtx(mute),     ///////////////////////////
-      delete_map_(map),   /////////////////////////
-      map_size_(map_size),    ////////////////////////
-      map_size_insert(0),   //////////////////////
       load_keys_set(std::move(set_)),  //////////////////////////////
       keys_(keys),   ///////////////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
@@ -245,6 +236,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
     }
   }  //遍历phase结束
   }
+  next_delete_key_index_= delete_keys_.size()-1;    //从delete_insert_最后一个开始删除，便于维护choosekey函数
   ////////////////////////////////
 }
 
@@ -254,7 +246,14 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
   if (index < *num_load_keys_) {
     return (*load_keys_)[index];
   }
-  return insert_keys_[index - *num_load_keys_];
+  ///////////////////////
+  else if(index < *num_load_keys_ + next_insert_key_index_){
+    return insert_keys_[index - *num_load_keys_];
+  }
+  else if(index < *num_load_keys_ + next_insert_key_index_ + next_delete_key_index_+1){
+    return delete_keys_[index - *num_load_keys_ - next_insert_key_index_];
+  }
+  ///////////////////////
 }
 
 Request Producer::Next() {
@@ -267,7 +266,7 @@ Request Producer::Next() {
   // request to do next. Otherwise we must do an insert. Note that we adjust
   // `op_dist_` as needed to ensure that we do not generate an insert once
   // `this_phase.num_inserts_left == 0`.//++如果剩下的请求比插入的多，我们可以随机决定下一步要做什么请求。否则我们必须插入。请注意，我们根据需要调整`op_dist_`，以确保不会生成一次插入`this_phase.num_inserts_left=0`。
-  if (this_phase.num_inserts_left < this_phase.num_requests_left  ||  this_phase.num_deletes_left < this_phase.num_requests_left) {
+  if (this_phase.num_inserts_left < this_phase.num_requests_left  +  this_phase.num_deletes_left < this_phase.num_requests_left) {
     // Decide what operation to do.
     const uint32_t choice = op_dist_(prng_);
     if (choice < this_phase.read_thres) {
@@ -341,8 +340,9 @@ Request Producer::Next() {
       to_return = Request(Request::Operation::kDelete,
                           delete_keys_[next_delete_key_index_], 0,
                           nullptr, 0);
-      ++next_delete_key_index_;
+      --next_delete_key_index_;
       --this_phase.num_deletes_left;
+      this_phase.IncreaseItemCountBy(-1);
       if (this_phase.num_deletes_left ==0) {
         if (this_phase.update_thres >0 ){
           op_dist_ = std::uniform_int_distribution<uint32_t>( 0 ,this_phase.update_thres-1);

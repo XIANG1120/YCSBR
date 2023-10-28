@@ -125,15 +125,21 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
   }
 
   /////////////////////////
+  //清空load_keys_
   executors[0]->GetProducer().GetLoadKeys()->clear();
-  //executors[0]->GetProducer().GetLoadKeys()->insert(executors[0]->GetProducer().GetLoadKeysSet()->begin(),executors[0]->GetProducer().GetLoadKeysSet()->end());
+ //将set中的元素移动到load_keys_
   std::move(executors[0]->GetProducer().GetLoadKeysSet()->begin(),executors[0]->GetProducer().GetLoadKeysSet()->end(),std::back_inserter(*(executors[0]->GetProducer().GetLoadKeys())));
+  //设置num_load_keys
   executors[0]->GetProducer().SetNumLoadKeys(executors[0]->GetProducer().GetLoadKeys()->size());
+  //将load_keys_中的元素排序
   std::sort(executors[0]->GetProducer().GetLoadKeys()->begin(),executors[0]->GetProducer().GetLoadKeys()->end());
-  size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
+  //为每个phase设置itemcount
   for ( auto& executor : executors) {
+    size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
     for (auto& phase : executor->GetProducer().GetPhases()) {
       phase.SetItemCount(size);
+      size += phase.num_deletes;
+      size -= phase.num_inserts;
     }
   }
   ////////////////////////

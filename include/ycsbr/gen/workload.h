@@ -126,9 +126,7 @@ class PhasedWorkload::Producer {
            std::shared_ptr< std::vector<Request::Key>> load_keys,  //被加载的key     ///////////////////////////
            std::shared_ptr<size_t> num_load_keys_,    ///////////////////////////////
            std::mutex & mute,   //////////////////////////
-           std::shared_ptr<std::map<size_t,size_t>> map,   /////////////////////////
            std::shared_ptr<std::unordered_set<Request::Key>> keys,   //////////////////////////
-           std::shared_ptr<std::size_t> map_size,   //////////////////////////
            std::shared_ptr<std::set<Request::Key>> set_,  ////////////////////////
            std::shared_ptr<
                const std::unordered_map<std::string, std::vector<Request::Key>>>
@@ -136,9 +134,6 @@ class PhasedWorkload::Producer {
            ProducerID id, size_t num_producers, uint32_t prng_seed);  //producer ID,生产者数量，prng_seed
 
   Request::Key ChooseKey(const std::unique_ptr<Chooser>& chooser);    
-  Request::Key deleteChooseKey(const std::unique_ptr<Chooser>& chooser);    //////////////////////////////
-  size_t IntoInsertKeys(size_t  index);   /////////////////////////
-  size_t IntoLoadKeys(size_t  index);    //////////////////////////
 
   ProducerID id_;
   size_t num_producers_;
@@ -153,7 +148,6 @@ class PhasedWorkload::Producer {
   std::shared_ptr< std::vector<Request::Key>> load_keys_;    /////////////////////
   //size_t num_load_keys_;
   std::shared_ptr<size_t> num_load_keys_;   /////////////////////////
-  std::shared_ptr<std::size_t> map_size_;    ///////////////////////////////////
   // Custom keys to insert.   //++自定义插入key
   std::shared_ptr<
       const std::unordered_map<std::string, std::vector<Request::Key>>>
@@ -168,11 +162,7 @@ class PhasedWorkload::Producer {
   std::shared_ptr<std::unordered_set<Request::Key>> keys_;
   std::shared_ptr<std::set<Request::Key>> load_keys_set;
 
-  size_t num_load_previous;   //////////////////////////
   std::mutex & mtx;   ///////////////////////////
-  std::shared_ptr<std::map<size_t,size_t>> delete_map_;   ///////////////////////
-  std::map<size_t,size_t> delete_map_insert_;   ///////////////////////////
-  size_t map_size_insert;   ////////////////////////////
 
   ValueGenerator valuegen_;
 
