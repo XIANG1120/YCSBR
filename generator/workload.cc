@@ -266,7 +266,7 @@ Request Producer::Next() {
   // request to do next. Otherwise we must do an insert. Note that we adjust
   // `op_dist_` as needed to ensure that we do not generate an insert once
   // `this_phase.num_inserts_left == 0`.//++如果剩下的请求比插入的多，我们可以随机决定下一步要做什么请求。否则我们必须插入。请注意，我们根据需要调整`op_dist_`，以确保不会生成一次插入`this_phase.num_inserts_left=0`。
-  if (this_phase.num_inserts_left < this_phase.num_requests_left  +  this_phase.num_deletes_left < this_phase.num_requests_left) {
+  if (this_phase.num_inserts_left   +  this_phase.num_deletes_left < this_phase.num_requests_left) {
     // Decide what operation to do.
     const uint32_t choice = op_dist_(prng_);
     if (choice < this_phase.read_thres) {
@@ -291,9 +291,11 @@ Request Producer::Next() {
   }
   else if (this_phase.num_inserts_left > 0){
     next_op = Request::Operation::kInsert;
+    assert(this_phase.num_inserts_left > 0);
   }
   else if (this_phase.num_deletes_left > 0){
     next_op = Request::Operation::kDelete;
+    assert(this_phase.num_deletes_left > 0); 
   }
 
   Request to_return;
