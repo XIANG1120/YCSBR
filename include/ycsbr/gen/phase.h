@@ -24,6 +24,8 @@ struct Phase {
         scan_thres(0),
         update_thres(0),
         delete_thres(0),         ///////////////////
+        num_deletes(0),   //////////////////
+        num_deletes_left(0),  ///////////////////
         max_scan_length(0) {}
 
   bool HasNext() const { return num_requests_left > 0; }
