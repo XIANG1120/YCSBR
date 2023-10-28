@@ -95,6 +95,25 @@ class PhasedWorkload::Producer {
     return current_phase_ < phases_.size() && phases_[current_phase_].HasNext();
   }
   Request Next();
+  
+  ///////////////////////////
+  std::shared_ptr< std::vector<Request::Key>> GetLoadKeys(){   
+    return load_keys_;
+  }
+
+  std::shared_ptr<size_t> GetNumLoadKeys(){
+    return num_load_keys_;
+  }
+
+  std::shared_ptr<std::set<Request::Key>> GetLoadKeysSet(){
+    return load_keys_set;
+  }
+
+  std::vector<Phase>& GetPhases(){
+    return phases_;
+  }
+  
+  ///////////////////////////
 
  private:
   friend class PhasedWorkload;   //友元类

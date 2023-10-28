@@ -125,12 +125,12 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
   }
 
   /////////////////////////
-  executors[0]->producer_.load_keys_->clear();
-  executors[0]->producer_.load_keys_->insert(executors[0]->producer_.load_keys_set->begin(),executors[0]->producer_.load_keys_set->end());
-  executors[0]->producer_.num_load_keys_ = executors[0]->producer_.load_keys_->size();
+  executors[0]->GetProducer().GetLoadKeys()->clear();
+  executors[0]->GetProducer().GetLoadKeys()->insert(executors[0]->GetProducer().GetLoadKeysSet()->begin(),executors[0]->GetProducer().GetLoadKeysSet()->end());
+  *(executors[0]->GetProducer().GetNumLoadKeys()) = executors[0]->GetProducer().GetLoadKeys()->size();
   for ( auto& executor : executors) {
-    for (auto& phase : executor->producer_.phase_) {
-      phase.SetItemCount(*(executor->producer_.num_load_keys_));
+    for (auto& phase : executor->GetProducer().GetPhases()) {
+      phase.SetItemCount(*(executor->producer_.GetNumLoadKeys()));
     }
   }
   ////////////////////////

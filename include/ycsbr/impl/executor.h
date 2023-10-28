@@ -35,6 +35,10 @@ class Executor {
   // Meant for use by YCSBR's internal microbenchmarks.
   void BM_WorkloadLoop();
 
+  WorkloadProducer& GetProducer(){   ///////////////////////////
+    return producer_;
+  }
+
  private:
   void WorkloadLoop();
   void SetupOutputFileIfNeeded();
