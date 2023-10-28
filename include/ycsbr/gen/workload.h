@@ -105,6 +105,10 @@ class PhasedWorkload::Producer {
     return num_load_keys_;
   }
 
+  void SetNumLoadKeys(size_t size){
+    *num_load_keys_=size;
+  }
+
   std::shared_ptr<std::set<Request::Key>> GetLoadKeysSet(){
     return load_keys_set;
   }
