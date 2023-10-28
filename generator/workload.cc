@@ -339,7 +339,7 @@ Request Producer::Next() {
     //////////////////////////////
     case Request::Operation::kDelete: {
       to_return = Request(Request::Operation::kDelete,
-                          insert_keys_[next_insert_key_index_], 0,
+                          delete_keys_[next_delete_key_index_], 0,
                           nullptr, 0);
       ++next_delete_key_index_;
       --this_phase.num_deletes_left;
