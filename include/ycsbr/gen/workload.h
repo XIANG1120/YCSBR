@@ -116,6 +116,10 @@ class PhasedWorkload::Producer {
   std::vector<Phase>& GetPhases(){
     return phases_;
   }
+
+  size_t GetNumDeleteKeys(){
+    return delete_keys_.size();
+  }
   
   ///////////////////////////
 

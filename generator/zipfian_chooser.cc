@@ -93,9 +93,15 @@ void ZipfianChooser::UpdateZetaNWithCaching() {    //!在缓存中查找theta和
   if (result.has_value()) {
     prev_item_count = result->first;
     prev_zeta_n = result->second;   
-    assert(prev_item_count < item_count_);   //?????
+   // assert(prev_item_count < item_count_);    /////////////////////////
   }
-  zeta_n_ = ComputeZetaN(item_count_, theta_, prev_item_count, prev_zeta_n);
+  //////////////////////////
+  if (prev_item_count < item_count_){  
+  zeta_n_ = ComputeZetaN(item_count_, theta_, prev_item_count, prev_zeta_n);}
+    else{
+    zeta_n_ = ComputeZetaNForDecrease(item_count_, theta_, prev_item_count, prev_zeta_n);
+  }
+  /////////////////////////
   // N.B. Multiple threads may end up computing zeta(n) for the same
   // `item_count`, but we consider this case acceptable because it cannot lead
   // to incorrect zeta(n) values.//++注意： 多个线程可能最终会计算相同的“item_count”的 zeta(n)，但我们认为这种情况是可以接受的，因为它不会导致不正确的 zeta(n) 值

@@ -390,11 +390,11 @@ Request Producer::Next() {
     ++current_phase_;
     /////////////////////////
     // std::cerr << "我要进入下一个阶段了" <<std::endl;
-    // if(current_phase_<phases_.size()){
+     if(current_phase_<phases_.size()){
     //   std::lock_guard<std::mutex> lock(mtx);
-    //   phases_[current_phase_].SetItemCount(*num_load_keys_ + insert_keys_.size()-*map_size_-map_size_insert);
+       phases_[current_phase_].SetItemCount(*num_load_keys_ + phases_[current_phase_-1].num_inserts - phases_[current_phase_-1].num_deletes);
     //    std::cerr << "我进入了下一个阶段" <<std::endl;
-    // }
+     }
     /////////////////////////
     // Reset the operation selection distribution.
     op_dist_ = std::uniform_int_distribution<uint32_t>(0, 99);

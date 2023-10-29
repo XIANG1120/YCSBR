@@ -32,14 +32,6 @@ class ZipfianChooser : public Chooser {
   // Will recompute constants for `new_item_count`. 
   void SetItemCount(size_t new_item_count) override;  //!将重新设置item_count_
 
-  ////////////////////////////
-  double ComputeZetaNForDecrease(const size_t item_count,    
-                                           const double theta,
-                                           const size_t prev_item_count,
-                                           const double prev_zeta_n);
-  void UpdateETAForDecrease();
-  ///////////////////////////
-
  protected:
   size_t item_count() const;
 
@@ -48,6 +40,13 @@ class ZipfianChooser : public Chooser {
                              size_t prev_item_count = 0,
                              double prev_zeta_n = 0.0);
   // Computes `zeta(n)`, using previously cached values if possible.//++计算 `zeta(n)`，如果可能的话使用之前缓存的值。
+
+  ////////////////////////////
+  static double ComputeZetaNForDecrease(const size_t item_count,    
+                                           const double theta,
+                                           const size_t prev_item_count,
+                                           const double prev_zeta_n);
+  ///////////////////////////
   void UpdateZetaNWithCaching();
   void UpdateETA();
 
@@ -132,7 +131,7 @@ inline void ZipfianChooser::IncreaseItemCountBy(const size_t delta) {   //!item_
   }
   else{
     zeta_n_ = ComputeZetaNForDecrease(item_count_, theta_, prev_item_count, prev_zeta_n);
-    UpdateETAForDecrease();
+    UpdateETA();
   }
   ////////////////////////////////
 }
@@ -178,11 +177,6 @@ inline double ZipfianChooser::ComputeZetaNForDecrease(const size_t item_count,
         1.0 / std::pow(static_cast<double>(item_count_so_far + 1), theta);
   }
   return zeta_so_far;
-}
-
-inline void ZipfianChooser::UpdateETAForDecrease() {   //! 更新减少条目数量后的ETA
-  eta_ = (1 - std::pow(2.0 / item_count_, 1.0 - theta_)) /
-         (1.0 - zeta2theta_ / zeta_n_);
 }
 /////////////////////////////////////
 
