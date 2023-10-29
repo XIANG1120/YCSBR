@@ -344,7 +344,7 @@ Request Producer::Next() {
                           nullptr, 0);
       ++next_delete_key_index_;
       --this_phase.num_deletes_left;
-      this_phase.IncreaseItemCountBy(-1);
+      //this_phase.IncreaseItemCountBy(-1);
       if (this_phase.num_deletes_left ==0) {
         if (this_phase.update_thres >0 ){
           op_dist_ = std::uniform_int_distribution<uint32_t>( 0 ,this_phase.update_thres-1);
