@@ -249,9 +249,12 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
   ///////////////////////
   else if(index < *num_load_keys_ + next_insert_key_index_){
     return insert_keys_[index - *num_load_keys_];
+    std::cerr << "insert范围错误" << std::endl;
   }
   else if(index < *num_load_keys_ + next_insert_key_index_ +  delete_keys_.size()- next_delete_key_index_){
     return delete_keys_[index - *num_load_keys_ - next_insert_key_index_ + next_delete_key_index_];
+  }else{
+    std::cerr << "范围错误" << std::endl;
   }
   ///////////////////////
 }
