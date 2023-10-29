@@ -107,7 +107,7 @@ inline void BenchmarkResult::PrintCSVHeader(std::ostream& out) {
          "Total read failed,"   /////////////////////////
          "Total write failed,"   ////////////////////////
          "Total scan failed,"   ////////////////////////
-         "Total delete failed",   ///////////////////////////
+         "Total delete failed,"   ///////////////////////////
          "num_scanned_keys,reads_ns_p99,"
          "reads_ns_p50,writes_ns_p99,writes_ns_p50,krequests_per_s,"
          "krecords_per_s,read_mib_per_s,write_mib_per_s"
