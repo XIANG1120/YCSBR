@@ -28,7 +28,7 @@ class UniformChooser : public Chooser {
     UpdateDistribution();
   }
 
-  void IncreaseItemCountBy(size_t delta) override {
+  void IncreaseItemCountBy(int delta) override {   /////////////////////////
     item_count_ += delta;
     UpdateDistribution();
   }
