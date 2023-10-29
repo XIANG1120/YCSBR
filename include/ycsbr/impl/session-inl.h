@@ -142,8 +142,8 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
   for ( auto& executor : executors) {
     size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
     for ( auto& phase : executor->GetProducer().GetPhases()){
-      phase.SetItemCount(size );
-      size + = phase.num_inserts;
+      phase.SetItemCount(size);
+      size += phase.num_inserts;
     }
   }
   ////////////////////////
