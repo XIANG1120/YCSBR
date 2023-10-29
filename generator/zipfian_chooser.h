@@ -27,7 +27,7 @@ class ZipfianChooser : public Chooser {
   size_t Next(PRNG& prng) override;
 
   // This requires some computation and can be slow if `delta` is large.//++这需要一些计算，并且如果“delta”很大的话可能会很慢。
-  void IncreaseItemCountBy(int delta) override;      /////////////////////////
+  void IncreaseItemCountBy(size_t delta) override;      
 
   // Will recompute constants for `new_item_count`. 
   void SetItemCount(size_t new_item_count) override;  //!将重新设置item_count_
@@ -120,20 +120,21 @@ inline size_t ScatteredZipfianChooser::Next(PRNG& prng) {
 #endif
 }
 
-inline void ZipfianChooser::IncreaseItemCountBy(const int delta) {   //!item_count增加delta，并重新计算zeta_n_和eta   ///////////////////////
+inline void ZipfianChooser::IncreaseItemCountBy(const size_t delta) {   //!item_count增加delta，并重新计算zeta_n_和eta   
   const size_t prev_item_count = item_count_;
   const double prev_zeta_n = zeta_n_;
-  item_count_ += delta;
-  ///////////////////////////////
-  if(delta>=0){
+  //////////////////////////
+    size_t c = 1 ;
+    if (delta != c ) {
+      item_count_ -= 1;
+      zeta_n_ = ComputeZetaNForDecrease(item_count_, theta_, prev_item_count, prev_zeta_n);
+      UpdateETA();
+    }else{
+    //////////////////////////
+    item_count_ += delta;
     zeta_n_ = ComputeZetaN(item_count_, theta_, prev_item_count, prev_zeta_n);
     UpdateETA();
-  }
-  else{
-    zeta_n_ = ComputeZetaNForDecrease(item_count_, theta_, prev_item_count, prev_zeta_n);
-    UpdateETA();
-  }
-  ////////////////////////////////
+    }  ////////////////////////
 }
 
 inline void ZipfianChooser::SetItemCount(const size_t new_item_count) {   //!重新设置item_count为new_item_count，并用缓存查找/更新zeta_n_，更新eta_

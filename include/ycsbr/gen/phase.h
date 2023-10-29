@@ -53,7 +53,7 @@ struct Phase {
     /////////////////////////////////
   }
 
-  void IncreaseItemCountBy(const int delta) {   ///////////////////////
+  void IncreaseItemCountBy(const size_t delta) {  
     if (read_chooser != nullptr) {
       read_chooser->IncreaseItemCountBy(delta);
     }

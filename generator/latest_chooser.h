@@ -35,8 +35,15 @@ class LatestChooser : public Chooser {
     zipf_.SetItemCount(item_count);
   }
 
-  void IncreaseItemCountBy(int delta) override {   //////////////////////
+  void IncreaseItemCountBy(size_t delta) override {   
+    //////////////////////////
+    size_t c = 1 ;
+    if (delta != c ) {
+      item_count_ -= 1;
+    }else{
+    //////////////////////////
     item_count_ += delta;
+    }  ////////////////////////
     zipf_.IncreaseItemCountBy(delta);
   }
 
