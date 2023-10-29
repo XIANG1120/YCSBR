@@ -228,11 +228,11 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
     for(int i=0;i<phase.num_deletes;i++){
       size_t index = phase.delete_chooser->Next(prng_);
       auto result = keys_->insert((*load_keys_)[index]);
-      if(!result.second) {
+      if(result.second) {    //!!!!result.second==true表明没有重复插入
         delete_keys_.emplace_back((*load_keys_)[index]);
         load_keys_set->erase((*load_keys_)[index]);
       }
-      else i--;
+      else {i--;}
     }
   }  //遍历phase结束
   }
