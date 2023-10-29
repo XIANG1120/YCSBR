@@ -84,7 +84,7 @@ inline std::ostream& operator<<(std::ostream& out, const BenchmarkResult& res) {
       << std::endl;
   out << "Total scan failed:     " << res.NumFailedScans()
       << std::endl;
-  out << "Total delete failed:     " << res.NumFailedDeletes
+  out << "Total delete failed:     " << res.NumFailedDeletes()
       << std::endl;
   /////////////////////////
   out << "Total scanned records:     " << res.Scans().NumRecords() << std::endl;
