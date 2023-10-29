@@ -236,7 +236,7 @@ void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种choo
     }
   }  //遍历phase结束
   }
-  next_delete_key_index_= delete_keys_.size()-1;    //从delete_insert_最后一个开始删除，便于维护choosekey函数
+  //next_delete_key_index_= delete_keys_.size()-1;    //从delete_insert_最后一个开始删除，便于维护choosekey函数
   ////////////////////////////////
 }
 
@@ -250,8 +250,8 @@ Request::Key Producer::ChooseKey(const std::unique_ptr<Chooser>& chooser) {
   else if(index < *num_load_keys_ + next_insert_key_index_){
     return insert_keys_[index - *num_load_keys_];
   }
-  else if(index < *num_load_keys_ + next_insert_key_index_ + next_delete_key_index_+1){
-    return delete_keys_[index - *num_load_keys_ - next_insert_key_index_];
+  else if(index < *num_load_keys_ + next_insert_key_index_ +  delete_keys_.size()- next_delete_key_index_){
+    return delete_keys_[index - *num_load_keys_ - next_insert_key_index_ + next_delete_key_index_];
   }
   ///////////////////////
 }
@@ -342,7 +342,7 @@ Request Producer::Next() {
       to_return = Request(Request::Operation::kDelete,
                           delete_keys_[next_delete_key_index_], 0,
                           nullptr, 0);
-      --next_delete_key_index_;
+      ++next_delete_key_index_;
       --this_phase.num_deletes_left;
       this_phase.IncreaseItemCountBy(-1);
       if (this_phase.num_deletes_left ==0) {
