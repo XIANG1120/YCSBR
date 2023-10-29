@@ -134,17 +134,11 @@ inline BenchmarkResult Session<DatabaseInterface>::RunWorkload(
   //将load_keys_中的元素排序
   std::sort(executors[0]->GetProducer().GetLoadKeys()->begin(),executors[0]->GetProducer().GetLoadKeys()->end());
   //为每第一个个phase设置itemcount
-  // size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
-  // for ( auto& executor : executors) {
-  //   auto& phase = executor->GetProducer().GetPhases()[0];
-  //     phase.SetItemCount(size + executor->GetProducer().GetNumDeleteKeys());
-  // }
+  size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
   for ( auto& executor : executors) {
-    size_t size = *(executors[0]->GetProducer().GetNumLoadKeys());
-    for ( auto& phase : executor->GetProducer().GetPhases()){
-      phase.SetItemCount(size);
-      size += phase.num_inserts;
-    }
+    auto& phase = executor->GetProducer().GetPhases()[0];
+      phase.SetItemCount(size + executor->GetProducer().GetNumDeleteKeys());
+  }
   }
   ////////////////////////
 
