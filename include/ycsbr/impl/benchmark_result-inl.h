@@ -78,6 +78,14 @@ inline std::ostream& operator<<(std::ostream& out, const BenchmarkResult& res) {
   //////////////////////////
   out << "Total delete requests:     " << res.Deletes().NumRequests()
       << std::endl;
+  out << "Total read failed:     " << res.NumFailedReads()
+      << std::endl;
+  out << "Total write failed:     " << res.NumFailedWrites()
+      << std::endl;
+  out << "Total scan failed:     " << res.NumFailedScans()
+      << std::endl;
+  out << "Total delete failed:     " << res.NumFailedDeletes
+      << std::endl;
   /////////////////////////
   out << "Total scanned records:     " << res.Scans().NumRecords() << std::endl;
   out << "Throughput (krequests/s):  "
@@ -96,6 +104,10 @@ inline void BenchmarkResult::PrintCSVHeader(std::ostream& out) {
   out << "total_time,"   //////////////////////
          "num_reads,num_writes,num_scans,"
          "num_deletes,"       ////////////////////////
+         "Total read failed,"   /////////////////////////
+         "Total write failed,"   ////////////////////////
+         "Total scan failed,"   ////////////////////////
+         "Total delete failed",   ///////////////////////////
          "num_scanned_keys,reads_ns_p99,"
          "reads_ns_p50,writes_ns_p99,writes_ns_p50,krequests_per_s,"
          "krecords_per_s,read_mib_per_s,write_mib_per_s"
@@ -113,6 +125,10 @@ inline void BenchmarkResult::PrintAsCSV(std::ostream& out,
   out << Writes().NumRequests() << ",";
   out << Scans().NumRequests() << ",";
   out << Deletes().NumRequests() << ",";        /////////////////////////// 
+  out << NumFailedReads() << ",";   ///////////////////////
+  out << NumFailedWrites() << ",";   ///////////////////////// 
+  out << NumFailedScans() << ",";   /////////////////////////// 
+  out << NumFailedDeletes() << ",";    ///////////////////////////
   out << Scans().NumRecords() << ",";
   out << Reads().LatencyPercentile<nanoseconds>(0.99).count() << ",";
   out << Reads().LatencyPercentile<nanoseconds>(0.5).count() << ",";
