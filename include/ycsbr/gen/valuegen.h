@@ -26,7 +26,7 @@ class ValueGenerator {
   const char* NextValue() {    //1024个value循环出现
     const char* to_return = &(raw_values_[next_value_index_]);
     next_value_index_ += value_size_;
-    if (next_value_index_ >= total_size_-1) {    //*将最后一个value用作墓碑值
+    if (next_value_index_ >= total_size_-value_size_) {    //*将最后一个value用作墓碑值   /////////////////////////////
       next_value_index_ = 0;
     }
     return to_return;
