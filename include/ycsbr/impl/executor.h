@@ -173,6 +173,11 @@ inline void Executor<DatabaseInterface, WorkloadProducer>::WorkloadLoop() {   //
         const auto run_time = MeasurementHelper(
             [this, &req, &value_out, &read_xor, &succeeded]() {
               succeeded = db_->Read(req.key, &value_out);    //参数为key和&value
+              ///////////////////////////
+              if (succeeded) {
+                  if(value_out == (std::string)(this->GetProducer().GetLastValue()))  succeeded = false;
+              }
+              //////////////////////////
               if (succeeded) {
                 // Force a read of the extracted value. We want to count this
                 // time against the read latency too.//++强制读取提取的值。 我们也想将这个时间计入读取延迟。
@@ -194,7 +199,7 @@ inline void Executor<DatabaseInterface, WorkloadProducer>::WorkloadLoop() {   //
         bool succeeded = false;
         const auto run_time = MeasurementHelper(
             [this, &req, &succeeded]() {
-              succeeded = db_->Delete(req.key);  
+              succeeded = db_->Delete(req.key, req.value, req.value_size);  
             },
             measure_latency);
         tracker_.RecordDelete(run_time, succeeded);
@@ -248,6 +253,16 @@ inline void Executor<DatabaseInterface, WorkloadProducer>::WorkloadLoop() {   //
         const auto run_time = MeasurementHelper(
             [this, &req, &scan_out, &read_xor, &succeeded]() {
               succeeded = db_->Scan(req.key, req.scan_amount, &scan_out);
+              /////////////////////////
+              if(succeeded){
+                std::string lastvalue = (std::string)(this->GetProducer().GetLastValue());
+                for(int i =0;i<scan_out.size();i++){
+                  if(scan_out[i].second == lastvalue )
+                  succeeded == false;
+                  break;
+                }
+              }
+              ////////////////////////
               if (succeeded && scan_out.size() > 0) {
                 // Force a read of the first extracted value. We want to count
                 // this time against the read latency too.//++强制读取第一个提取的值。 我们也想将这个时间计入读取延迟
@@ -283,9 +298,14 @@ inline void Executor<DatabaseInterface, WorkloadProducer>::WorkloadLoop() {   //
               // Do the read.
               succeeded = db_->Read(req.key, &value_out);   //先读
               if (!succeeded) return;
+              ///////////////////////////
+              if (succeeded) {
+                  if(value_out == (std::string)(this->GetProducer().GetLastValue()))  succeeded = false;
+              }
+              //////////////////////////
               // Force a read of the extracted value. We want to count this
               // time against the read latency too.
-              read_xor ^= *reinterpret_cast<const uint32_t*>(value_out.c_str());
+              if (succeeded) read_xor ^= *reinterpret_cast<const uint32_t*>(value_out.c_str());
             },
             measure_latency);
         tracker_.RecordRead(read_run_time, value_out.size(), succeeded);

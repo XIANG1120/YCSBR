@@ -120,6 +120,10 @@ class PhasedWorkload::Producer {
   size_t GetNumDeleteKeys(){
     return delete_keys_.size();
   }
+
+  const char* GetLastValue(){
+    valuegen_.LastValue();
+  }
   
   ///////////////////////////
 

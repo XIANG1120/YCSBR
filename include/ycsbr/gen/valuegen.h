@@ -19,17 +19,25 @@ class ValueGenerator {
         next_value_index_(0) {
     assert(num_values >= 1);
     assert(value_size_ >= sizeof(uint32_t));
-    raw_values_ = impl::GetRandomBytes(total_size_, prng);
+    raw_values_ = impl::GetRandomBytes(total_size_, prng);    //1024个不同的value
+    lastindex = total_size_ - value_size_;   ///////////////////////
   }
 
-  const char* NextValue() {
+  const char* NextValue() {    //1024个value循环出现
     const char* to_return = &(raw_values_[next_value_index_]);
     next_value_index_ += value_size_;
-    if (next_value_index_ >= total_size_) {
+    if (next_value_index_ >= total_size_-1) {    //*将最后一个value用作墓碑值
       next_value_index_ = 0;
     }
     return to_return;
   }
+
+  ////////////////////////////////
+  const char* LastValue() {    //获取墓碑值
+    const char* to_return = &(raw_values_[lastindex]);
+    return to_return;
+  }
+  ////////////////////////////////
 
   size_t value_size() const { return value_size_; }
 
@@ -38,6 +46,7 @@ class ValueGenerator {
   size_t value_size_;
   size_t total_size_;
   size_t next_value_index_;
+  size_t lastindex;   ///////////////////
 };
 
 }  // namespace gen

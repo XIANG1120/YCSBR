@@ -162,7 +162,7 @@ Producer::Producer(
       load_keys_set(std::move(set_)),  //////////////////////////////
       keys_(keys),   ///////////////////////////////////
       valuegen_(config_->GetRecordSizeBytes() - sizeof(Request::Key),
-                kNumUniqueValues, prng_),
+                kNumUniqueValues, prng_),     //生成1024个不同的value
       op_dist_(0, 99) {}
 
 void Producer::Prepare() {   //!配置各个phase,生成每个phase的各种chooser，并载入/生成insert keys到producer.insert_keys_
@@ -344,7 +344,7 @@ Request Producer::Next() {
     case Request::Operation::kDelete: {
       to_return = Request(Request::Operation::kDelete,
                           delete_keys_[next_delete_key_index_], 0,
-                          nullptr, 0);
+                          valuegen_.LastValue(), valuegen_.value_size());
       ++next_delete_key_index_;
       --this_phase.num_deletes_left;
       this_phase.IncreaseItemCountBy(-1);
