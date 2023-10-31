@@ -174,7 +174,7 @@ inline double ZipfianChooser::ComputeZetaNForDecrease(const size_t item_count,
   size_t item_count_so_far = item_count;
   double zeta_so_far = prev_zeta_n;
   for (; item_count_so_far < prev_item_count; ++item_count_so_far) {
-    zeta_so_far +=
+    zeta_so_far -=
         1.0 / std::pow(static_cast<double>(item_count_so_far + 1), theta);
   }
   return zeta_so_far;
